@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pokémon GO Catch Sim</title>
+    
+    <!-- FORCE NO-CACHE (Forces browser to check for updates) -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
+    <title>Pokémon Catch Sim</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -202,8 +208,34 @@
         @keyframes catchFlash { 0% {filter: brightness(1);} 50% {filter: brightness(3) sepia(1) hue-rotate(-50deg);} }
 
     </style>
+    
+    <!-- AUTO-UPDATE SCRIPT -->
     <script>
-        if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                // Add timestamp to force update check
+                navigator.serviceWorker.register('sw.js?v=' + new Date().getTime())
+                    .then(registration => {
+                        console.log('SW registered');
+                        
+                        registration.onupdatefound = () => {
+                            const newWorker = registration.installing;
+                            newWorker.onstatechange = () => {
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New version found, reload to activate sw.js claim()
+                                    window.location.reload();
+                                }
+                            };
+                        };
+                    })
+                    .catch(err => console.log('SW Fail:', err));
+            });
+
+            // Immediately reload if the controller changes
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                window.location.reload();
+            });
+        }
     </script>
 </head>
 <body>
