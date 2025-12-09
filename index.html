@@ -4,23 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- FORCE NO-CACHE (Forces browser to check for updates) -->
+    <!-- FORCE NO-CACHE -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <title>Pokémon Catch Sim</title>
+    <title>Pokémon Catch Sim v10</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#000000">
+    <meta name="theme-color" content="#5CA0F0">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png">
 
     <style>
         /* --- RESET & LAYOUT --- */
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background: #000;
+            overflow: hidden; background: #5CA0F0; /* Blue Fallback */
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             touch-action: none; user-select: none; -webkit-user-select: none;
         }
@@ -28,51 +28,56 @@
         #game-stage {
             position: relative; width: 100%; height: 100%;
             overflow: hidden;
-            background: url('https://images.unsplash.com/photo-1596323672439-e5c94294b22c?q=80&w=1000&auto=format&fit=crop') no-repeat center center;
-            background-size: cover;
-            perspective: 800px;
+            /* PURE CSS ENVIRONMENT (No external images to fail) */
+            background: linear-gradient(to bottom, 
+                #5CA0F0 0%, 
+                #C3E0F8 50%, 
+                #68A748 50%, 
+                #3B7E27 100%
+            );
+            perspective: 900px;
         }
 
         /* --- POKEMON TARGET --- */
         #pokemon-container {
             position: absolute;
-            top: 48%; left: 50%;
+            top: 46%; left: 50%;
             transform: translate3d(-50%, -50%, -300px);
-            width: 300px; height: 300px;
+            width: 400px; height: 400px;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             z-index: 10; pointer-events: none;
             will-change: transform;
         }
 
         #pokemon-sprite {
-            width: 220px; height: 220px;
+            width: 300px; height: 300px;
             object-fit: contain;
             filter: drop-shadow(0 20px 20px rgba(0,0,0,0.4));
             animation: idleHover 3s infinite ease-in-out;
             transition: transform 0.2s, opacity 0.2s;
         }
-        @keyframes idleHover { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+        @keyframes idleHover { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
 
         #cp-tag {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 4px 12px; border-radius: 12px;
-            font-weight: 800; color: #444; font-size: 14px;
-            margin-bottom: 15px; text-transform: uppercase;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            background: rgba(255, 255, 255, 0.95);
+            padding: 6px 16px; border-radius: 16px;
+            font-weight: 800; color: #333; font-size: 16px;
+            margin-bottom: 20px; text-transform: uppercase;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
 
         /* --- TARGET RINGS --- */
         #ring-container {
             position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -30%);
-            width: 150px; height: 150px;
+            transform: translate(-50%, -25%); 
+            width: 220px; height: 220px;
             display: flex; justify-content: center; align-items: center;
         }
         .ring { position: absolute; border-radius: 50%; box-sizing: border-box; }
-        #ring-outer { width: 100%; height: 100%; border: 3px solid rgba(255,255,255,0.7); }
+        #ring-outer { width: 100%; height: 100%; border: 4px solid rgba(255,255,255,0.7); }
         #ring-target { 
             width: 100%; height: 100%; 
-            border: 3px solid #ff0000; 
+            border: 4px solid #ff0000; 
             animation: shrinkRing 1.8s linear infinite; 
         }
         @keyframes shrinkRing { 0% { transform: scale(1); opacity:1; } 100% { transform: scale(0); opacity:1; } }
@@ -95,10 +100,10 @@
         }
         
         .sparkle {
-            position: absolute; width: 8px; height: 8px;
-            background: gold; border-radius: 50%;
+            position: absolute; width: 10px; height: 10px;
+            background: #FFF700; border-radius: 50%;
             pointer-events: none; opacity: 0;
-            box-shadow: 0 0 5px gold;
+            box-shadow: 0 0 8px #FFF700;
         }
 
         /* --- UI OVERLAY --- */
@@ -109,30 +114,30 @@
 
         .ui-btn {
             position: absolute; bottom: 30px;
-            width: 50px; height: 50px;
-            background: rgba(255,255,255,0.9);
+            width: 60px; height: 60px;
+            background: rgba(255,255,255,0.95);
             border-radius: 50%;
             display: flex; justify-content: center; align-items: center;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             pointer-events: auto; cursor: pointer;
             transition: transform 0.1s;
         }
         .ui-btn:active { transform: scale(0.9); }
-        #btn-berry { left: 20px; }
-        #btn-ball { right: 20px; }
+        #btn-berry { left: 25px; }
+        #btn-ball { right: 25px; }
 
         #toast {
             position: absolute; top: 35%; left: 50%;
             transform: translate(-50%, -50%) scale(0.5);
             font-family: 'Arial Black', sans-serif;
-            font-size: 32px; color: white;
-            text-shadow: 0 0 5px black, 2px 2px 0 black;
+            font-size: 36px; color: white;
+            text-shadow: 0 0 5px black, 3px 3px 0 black;
             opacity: 0; pointer-events: none;
             transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         #toast.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
-        /* Inventory Menus */
+        /* Menus */
         .drawer {
             position: absolute; bottom: 0; left: 0; width: 100%;
             background: #fff; border-radius: 20px 20px 0 0;
@@ -142,20 +147,21 @@
         }
         .drawer.open { transform: translateY(0); }
         .drawer-item {
-            display: flex; align-items: center; padding: 10px;
+            display: flex; align-items: center; padding: 12px;
             border-bottom: 1px solid #eee;
         }
 
         #active-berry {
-            position: absolute; top: 20%; right: 20px; width: 40px; display: none;
+            position: absolute; top: 15%; right: 20px; width: 50px; display: none;
+            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
         }
 
         /* --- RESULT SCREEN --- */
         #result-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.95);
+            background: rgba(255,255,255,0.98);
             z-index: 500;
-            display: none; /* Hidden by default */
+            display: none;
             flex-direction: column; align-items: center; justify-content: center;
             pointer-events: auto;
             opacity: 0; transition: opacity 0.5s;
@@ -164,39 +170,40 @@
         
         #result-header {
             font-family: 'Arial Black', sans-serif;
-            font-size: 36px; color: #4CAF50;
+            font-size: 40px; color: #4CAF50;
             margin-bottom: 20px;
         }
         
         .result-stats-box {
-            background: #f0f0f0;
-            border-radius: 15px;
-            padding: 20px;
-            width: 80%; max-width: 300px;
-            margin-bottom: 20px;
+            background: #f8f8f8;
+            border-radius: 20px;
+            padding: 25px;
+            width: 85%; max-width: 320px;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
         }
         
         .stat-row {
             display: flex; justify-content: space-between;
-            margin: 8px 0; font-weight: bold; color: #555;
-            font-size: 14px;
+            margin: 8px 0; font-weight: bold; color: #666;
+            font-size: 15px;
         }
-        .stat-val { color: #333; }
-        .bonus-row { color: #2196F3; font-size: 13px; }
+        .stat-val { color: #222; }
+        .bonus-row { color: #2196F3; font-size: 14px; }
         
         .resource-row {
-            display: flex; justify-content: center; gap: 20px;
-            margin-top: 15px; border-top: 1px solid #ddd; padding-top: 15px;
+            display: flex; justify-content: center; gap: 30px;
+            margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px;
         }
         .res-item { display: flex; flex-direction: column; align-items: center; font-weight: bold; }
-        .res-val { font-size: 18px; margin-top: 5px; }
+        .res-val { font-size: 22px; margin-top: 5px; }
 
         #btn-next {
             background: #4CAF50; color: white;
-            border: none; padding: 15px 50px;
-            border-radius: 30px; font-size: 18px; font-weight: bold;
-            box-shadow: 0 4px 10px rgba(76, 175, 80, 0.4);
-            cursor: pointer;
+            border: none; padding: 16px 60px;
+            border-radius: 35px; font-size: 18px; font-weight: bold;
+            box-shadow: 0 6px 15px rgba(76, 175, 80, 0.4);
+            cursor: pointer; transform: scale(1); transition: transform 0.1s;
         }
         #btn-next:active { transform: scale(0.95); }
 
@@ -205,7 +212,7 @@
         @keyframes shake { 20% {transform: translateX(-5px) rotate(-10deg)} 40% {transform: translateX(5px) rotate(10deg)} 60% {transform: translateX(-5px) rotate(-10deg)} 80% {transform: translateX(5px) rotate(10deg)} }
         
         .catch-flash { animation: catchFlash 0.5s; }
-        @keyframes catchFlash { 0% {filter: brightness(1);} 50% {filter: brightness(3) sepia(1) hue-rotate(-50deg);} }
+        @keyframes catchFlash { 0% {filter: brightness(1);} 50% {filter: brightness(5) sepia(1) hue-rotate(-50deg);} }
 
     </style>
     
@@ -213,16 +220,12 @@
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                // Add timestamp to force update check
                 navigator.serviceWorker.register('sw.js?v=' + new Date().getTime())
                     .then(registration => {
-                        console.log('SW registered');
-                        
                         registration.onupdatefound = () => {
                             const newWorker = registration.installing;
                             newWorker.onstatechange = () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    // New version found, reload to activate sw.js claim()
                                     window.location.reload();
                                 }
                             };
@@ -230,8 +233,6 @@
                     })
                     .catch(err => console.log('SW Fail:', err));
             });
-
-            // Immediately reload if the controller changes
             navigator.serviceWorker.addEventListener('controllerchange', () => {
                 window.location.reload();
             });
@@ -242,7 +243,7 @@
 
 <div id="game-stage">
     <div id="pokemon-container">
-        <div id="cp-tag">Pikachu CP 842</div>
+        <div id="cp-tag">Loading...</div>
         <img id="active-berry" src="" />
         <img id="pokemon-sprite" src="" />
         <div id="ring-container">
@@ -261,10 +262,10 @@
     <!-- Gameplay UI -->
     <div id="gameplay-ui">
         <div id="btn-berry" class="ui-btn" onclick="UI.open('berry')">
-            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/razz-berry.png" width="30">
+            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/razz-berry.png" width="36">
         </div>
         <div id="btn-ball" class="ui-btn" onclick="UI.open('ball')">
-            <img id="current-ball-icon" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" width="30">
+            <img id="current-ball-icon" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" width="36">
         </div>
     </div>
 
@@ -278,21 +279,18 @@
     <!-- Result Screen -->
     <div id="result-overlay">
         <div id="result-header">Gotcha!</div>
-        
-        <img id="res-poke-img" src="" width="120" style="margin-bottom:10px;">
-        <div id="res-poke-name" style="font-weight:bold; color:#555; margin-bottom:10px;">Pikachu</div>
-        
+        <img id="res-poke-img" src="" width="140" style="margin-bottom:15px;">
+        <div id="res-poke-name" style="font-weight:bold; color:#555; font-size: 18px; margin-bottom:10px;">Pikachu</div>
         <div class="result-stats-box">
             <div class="stat-row">
                 <span>Pokémon Caught</span>
                 <span class="stat-val">100 XP</span>
             </div>
-            <div id="bonus-list"></div> <!-- Dynamic Bonuses -->
-            <div class="stat-row" style="margin-top:15px; font-size:16px; border-top:1px solid #ddd; padding-top:10px;">
+            <div id="bonus-list"></div>
+            <div class="stat-row" style="margin-top:15px; font-size:18px; border-top:1px solid #ddd; padding-top:10px;">
                 <span>TOTAL</span>
-                <span class="stat-val" id="total-xp-val">100 XP</span>
+                <span class="stat-val" id="total-xp-val" style="color:#4CAF50">100 XP</span>
             </div>
-            
             <div class="resource-row">
                 <div class="res-item" style="color:#E91E63">
                     <span>CANDY</span>
@@ -304,7 +302,6 @@
                 </div>
             </div>
         </div>
-
         <button id="btn-next" onclick="Game.nextPokemon()">Next Pokémon</button>
     </div>
 </div>
@@ -318,20 +315,20 @@
 
     const DB = {
         balls: {
-            'Poke Ball': { img:'poke-ball.png', qty:50 },
-            'Great Ball': { img:'great-ball.png', qty:30 },
-            'Ultra Ball': { img:'ultra-ball.png', qty:15 },
-            'Master Ball': { img:'master-ball.png', qty:1 }
+            'Poke Ball': { img:'poke-ball.png', qty:50, rate: 1.0 },
+            'Great Ball': { img:'great-ball.png', qty:30, rate: 1.5 },
+            'Ultra Ball': { img:'ultra-ball.png', qty:15, rate: 2.0 },
+            'Master Ball': { img:'master-ball.png', qty:1, rate: 100.0 }
         },
         berries: {
-            'Razz Berry': { img:'razz-berry.png', qty:10 },
-            'Nanab Berry': { img:'nanab-berry.png', qty:10 },
-            'Pinap Berry': { img:'pinap-berry.png', qty:10 }
+            'Razz Berry': { img:'razz-berry.png', qty:10, mod: 1.5 },
+            'Nanab Berry': { img:'nanab-berry.png', qty:10, mod: 1.0 }, 
+            'Pinap Berry': { img:'pinap-berry.png', qty:10, mod: 1.0 }
         },
         mons: [
             {id:25, n:'Pikachu'}, {id:1, n:'Bulbasaur'}, {id:4, n:'Charmander'},
             {id:7, n:'Squirtle'}, {id:133, n:'Eevee'}, {id:143, n:'Snorlax'},
-            {id:150, n:'Mewtwo'}, {id:94, n:'Gengar'}
+            {id:150, n:'Mewtwo'}, {id:94, n:'Gengar'}, {id:6, n:'Charizard'}
         ]
     };
 
@@ -346,9 +343,9 @@
             pos: {x:0, y:0, z:0},
             vel: {x:0, y:0, z:0},
             rot: 0,
-            // Stats for result
-            throwGrade: null, // Nice, Great, Excellent
-            isCurve: false
+            throwGrade: null, 
+            isCurve: false,
+            shakeTarget: 0 
         },
 
         init: () => {
@@ -369,17 +366,16 @@
             const m = DB.mons[Math.floor(Math.random()*DB.mons.length)];
             const cp = Math.floor(Math.random()*2500)+100;
             Game.state.mon = m;
-            Game.state.berry = null;
             Game.state.mon.cp = cp;
+            Game.state.berry = null;
 
-            // DOM
             document.getElementById('pokemon-sprite').src = ASSETS.poke + m.id + '.png';
             document.getElementById('pokemon-sprite').style.transform = 'scale(1)';
             document.getElementById('pokemon-sprite').style.opacity = 1;
             document.getElementById('cp-tag').innerText = `${m.n} CP ${cp}`;
             document.getElementById('active-berry').style.display = 'none';
             document.getElementById('ring-container').style.display = 'flex';
-            document.getElementById('gameplay-ui').style.display = 'block'; // Show buttons
+            document.getElementById('gameplay-ui').style.display = 'block'; 
             
             const colors = ['#FF0000', '#FF9800', '#4CAF50'];
             document.getElementById('ring-target').style.borderColor = colors[Math.floor(Math.random()*3)];
@@ -411,7 +407,7 @@
                 if (Math.abs(Game.state.spin) > 0.5) {
                     Game.state.rot += Game.state.spin * 15;
                     document.getElementById('ball-sprite').style.transform = `rotate(${Game.state.rot}deg)`;
-                    if(Math.abs(Game.state.spin) > 2 && Math.random() > 0.7) FX.sparkle(Game.state.pos.x, Game.state.pos.y);
+                    if(Math.abs(Game.state.spin) > 2 && Math.random() > 0.6) FX.sparkle(Game.state.pos.x, Game.state.pos.y);
                 }
                 Game.state.spin *= 0.9;
             }
@@ -423,11 +419,11 @@
 
                 s.vel.y += 0.85; 
                 s.vel.z *= 0.98;
-                s.vel.x += s.spin * 0.4; 
+                s.vel.x += s.spin * 0.45;
 
                 s.rot += s.spin * 20 + 5; 
                 
-                const perspective = 800;
+                const perspective = 900;
                 const scale = perspective / (perspective + s.pos.z);
                 
                 const b = document.getElementById('ball-container');
@@ -438,14 +434,14 @@
                 b.style.transform = `translate3d(-50%, -50%, 0) scale(${scale})`;
                 g.style.transform = `rotate(${s.rot}deg)`;
 
-                if (s.pos.z > 250 && s.pos.z < 350) {
+                if (s.pos.z > 250 && s.pos.z < 380) {
                     const rect = document.getElementById('pokemon-container').getBoundingClientRect();
-                    if (s.pos.x > rect.left && s.pos.x < rect.right && s.pos.y > rect.top && s.pos.y < rect.bottom) {
+                    if (s.pos.x > rect.left+20 && s.pos.x < rect.right-20 && s.pos.y > rect.top+20 && s.pos.y < rect.bottom-20) {
                         Game.hit();
                     }
                 }
                 
-                if (s.pos.z > 400 || s.pos.y > window.innerHeight) Game.miss();
+                if (s.pos.z > 450 || s.pos.y > window.innerHeight) Game.miss();
             }
             requestAnimationFrame(Game.loop);
         },
@@ -457,13 +453,24 @@
             const target = document.getElementById('ring-target').offsetWidth;
             const ratio = target/outer;
             
-            let msg="Nice!", col="white";
-            if(ratio < 0.2) { msg="Excellent!"; col="#FFD700"; Game.state.throwGrade="Excellent"; }
-            else if(ratio < 0.5) { msg="Great!"; col="red"; Game.state.throwGrade="Great"; }
-            else if(ratio > 0.9) { msg=""; Game.state.throwGrade=null; }
-            else { Game.state.throwGrade="Nice"; }
+            let msg="Nice!", col="white", gradeBonus = 1.1;
+            if(ratio < 0.25) { msg="Excellent!"; col="#FFD700"; Game.state.throwGrade="Excellent"; gradeBonus = 1.8; }
+            else if(ratio < 0.55) { msg="Great!"; col="red"; Game.state.throwGrade="Great"; gradeBonus = 1.4; }
+            else if(ratio > 0.95) { msg=""; Game.state.throwGrade=null; gradeBonus = 1.0; }
+            else { Game.state.throwGrade="Nice"; gradeBonus = 1.1; }
 
             if(msg) UI.toast(msg, col);
+
+            let baseChance = 0.40;
+            const ballRate = DB.balls[Game.state.ball].rate;
+            const berryMod = Game.state.berry ? DB.berries[Game.state.berry].mod : 1.0;
+            const curveMod = Game.state.isCurve ? 1.2 : 1.0;
+            
+            let finalChance = baseChance * ballRate * berryMod * gradeBonus * curveMod;
+            if (Game.state.ball === 'Master Ball') finalChance = 100;
+            
+            if (Math.random() < finalChance) Game.state.shakeTarget = 3;
+            else Game.state.shakeTarget = Math.floor(Math.random() * 3);
 
             document.getElementById('ring-container').style.display = 'none';
             const b = document.getElementById('ball-container');
@@ -472,7 +479,7 @@
             b.style.transition = 'all 0.1s linear';
             b.style.left = (p.left + p.width/2) + 'px';
             b.style.top = (p.top + p.height/2) + 'px';
-            b.style.transform = `translate(-50%, -50%) scale(0.6)`;
+            b.style.transform = `translate(-50%, -50%) scale(0.7)`;
             
             const sprite = document.getElementById('pokemon-sprite');
             sprite.style.transition = 'all 0.4s ease-in';
@@ -481,15 +488,15 @@
 
             setTimeout(() => {
                 b.style.transition = 'top 0.4s ease-out';
-                b.style.top = (p.bottom + 40) + 'px';
-                setTimeout(() => Game.shakeCheck(0), 400);
+                b.style.top = (p.bottom - 40) + 'px';
+                setTimeout(() => Game.playShake(0), 400);
             }, 400);
         },
 
-        shakeCheck: (count) => {
+        playShake: (count) => {
             const b = document.getElementById('ball-sprite');
+            
             if(count >= 3) {
-                // CAUGHT!
                 document.getElementById('ball-container').classList.add('catch-flash');
                 setTimeout(() => {
                     document.getElementById('ball-container').classList.remove('catch-flash');
@@ -498,13 +505,13 @@
                 return;
             }
             
-            if(Math.random() > 0.4) {
+            if(count < Game.state.shakeTarget) {
                 b.style.animation = 'none';
                 b.offsetHeight; 
                 b.parentElement.classList.add('shake');
                 setTimeout(() => {
                     b.parentElement.classList.remove('shake');
-                    Game.shakeCheck(count + 1);
+                    Game.playShake(count + 1);
                 }, 1000);
             } else {
                 UI.toast("Broke free!", "white");
@@ -514,8 +521,6 @@
                 sprite.style.transform = 'scale(1)';
                 sprite.style.opacity = 1;
                 document.getElementById('ring-container').style.display = 'flex';
-                Game.state.berry = null;
-                document.getElementById('active-berry').style.display = 'none';
                 setTimeout(Game.resetBall, 1000);
             }
         },
@@ -525,35 +530,27 @@
             const res = document.getElementById('result-overlay');
             const list = document.getElementById('bonus-list');
             
-            // Populate Data
             document.getElementById('res-poke-img').src = ASSETS.poke + s.mon.id + '.png';
             document.getElementById('res-poke-name').innerText = s.mon.n + " (CP " + s.mon.cp + ")";
             
-            // Calc XP
             let totalXP = 100;
             list.innerHTML = '';
             
-            // Throw Bonus
             if (s.throwGrade) {
                 let bonus = s.throwGrade === 'Excellent' ? 1000 : (s.throwGrade === 'Great' ? 500 : 100);
                 totalXP += bonus;
                 list.innerHTML += `<div class="stat-row bonus-row"><span>${s.throwGrade} Throw</span><span>+${bonus} XP</span></div>`;
             }
-            
-            // Curve Bonus
             if (s.isCurve) {
                 totalXP += 20;
                 list.innerHTML += `<div class="stat-row bonus-row"><span>Curveball</span><span>+20 XP</span></div>`;
             }
 
             document.getElementById('total-xp-val').innerText = totalXP + " XP";
-            
-            // Candy
             let candy = s.berry === 'Pinap Berry' ? 6 : 3;
             document.getElementById('res-candy').innerText = "+" + candy;
 
-            // Show UI
-            document.getElementById('gameplay-ui').style.display = 'none'; // Hide buttons
+            document.getElementById('gameplay-ui').style.display = 'none';
             res.style.display = 'flex';
             setTimeout(() => res.classList.add('visible'), 10);
         },
@@ -582,7 +579,7 @@
             if (Game.state.mode !== 'idle') return;
             const p = e.touches ? e.touches[0] : e;
             const rect = document.getElementById('ball-container').getBoundingClientRect();
-            const pad = 100; 
+            const pad = 120;
             if (p.clientX < rect.left - pad || p.clientX > rect.right + pad || p.clientY < rect.top - pad) return;
 
             e.preventDefault();
@@ -592,8 +589,7 @@
             
             const b = document.getElementById('ball-container');
             b.style.transition = 'none';
-            b.style.transform = `translate3d(-50%, -50%, 0) scale(1.1)`;
-            
+            b.style.transform = `translate3d(-50%, -50%, 0) scale(1.15)`;
             Input.track(p.clientX, p.clientY);
         },
 
@@ -608,10 +604,8 @@
             const now = Date.now();
             Input.hist.push({x, y, t:now});
             if (Input.hist.length > 8) Input.hist.shift();
-            
             Game.state.pos.x = x;
             Game.state.pos.y = y;
-
             if (Input.hist.length > 3) {
                 const prev = Input.hist[Input.hist.length-2];
                 const dx = x - prev.x;
@@ -622,14 +616,12 @@
         end: (e) => {
             if (!Input.active) return;
             Input.active = false;
-            
             const hist = Input.hist;
             if(hist.length < 2) { Game.resetBall(); return; }
             const start = hist[0];
             const end = hist[hist.length-1];
             const dt = end.t - start.t;
             if(Date.now() - end.t > 150) { Game.resetBall(); return; }
-
             const vx = (end.x - start.x) / dt;
             const vy = (end.y - start.y) / dt;
             if (vy > -0.5) { Game.resetBall(); return; }
@@ -638,14 +630,12 @@
             UI.updateIcon();
 
             Game.state.mode = 'fly';
-            Game.state.isCurve = Math.abs(Game.state.spin) > 2; // Check curve status at launch
-
+            Game.state.isCurve = Math.abs(Game.state.spin) > 2;
             const b = document.getElementById('ball-container');
             b.style.transition = 'none';
-            
             Game.state.vel.x = vx * 16;
             Game.state.vel.y = vy * 16;
-            Game.state.vel.z = Math.abs(vy) * 28;
+            Game.state.vel.z = Math.abs(vy) * 26; 
             Game.state.pos.z = 0;
         }
     };
@@ -655,8 +645,8 @@
         sparkle: (x, y) => {
             const el = document.createElement('div');
             el.className = 'sparkle';
-            const ox = (Math.random()-0.5) * 60;
-            const oy = (Math.random()-0.5) * 60;
+            const ox = (Math.random()-0.5) * 80;
+            const oy = (Math.random()-0.5) * 80;
             el.style.left = (x + ox) + 'px';
             el.style.top = (y + oy) + 'px';
             document.body.appendChild(el);
@@ -682,7 +672,6 @@
             const list = document.getElementById('drawer-list');
             list.innerHTML = '';
             document.getElementById('drawer-title').innerText = "SELECT " + type.toUpperCase();
-            
             const data = type === 'ball' ? DB.balls : DB.berries;
             for(let key in data) {
                 const item = data[key];
