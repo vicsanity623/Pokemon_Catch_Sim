@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pokémon Catch Sim</title>
+    <title>PokeCatch 3D</title>
     <!-- PWA Manifest Link -->
     <link rel="manifest" href="manifest.json">
     <!-- iOS Meta Tags -->
@@ -21,268 +21,192 @@
             height: 100%;
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            background-color: #B0E0E6; /* Fallback */
+            background-color: #87CEEB;
             user-select: none;
             -webkit-user-select: none;
-            touch-action: none; /* Critical for swipe gestures */
+            touch-action: none;
         }
 
-        #game-layer {
+        #world-stage {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 40%, #8BC34A 40%, #4CAF50 100%);
+            top: 0; left: 0; width: 100%; height: 100%;
+            /* 3D Perspective Container */
+            perspective: 800px; 
             overflow: hidden;
         }
 
-        /* --- Scenery --- */
-        .scenery-element {
-            position: absolute;
-            bottom: 40%; 
-            z-index: 5;
-            pointer-events: none;
+        /* --- Environment --- */
+        .sky {
+            position: absolute; top: 0; left: 0; width: 100%; height: 60%;
+            background: linear-gradient(to bottom, #87CEEB 0%, #E0F7FA 100%);
+            z-index: 1;
         }
-        .tree-left { left: -20px; width: 80px; height: 120px; background: #2E7D32; border-radius: 50% 50% 0 0; }
-        .tree-right { right: -20px; width: 90px; height: 140px; background: #D84315; border-radius: 50% 50% 0 0; }
-        .grass-patch {
-            position: absolute;
-            bottom: 20%;
-            left: 20%;
-            width: 100px;
-            height: 20px;
-            background: rgba(0,0,0,0.1);
-            border-radius: 50%;
-            pointer-events: none;
+        .ground {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 40%;
+            background: linear-gradient(to bottom, #8BC34A 0%, #4CAF50 100%);
+            z-index: 1;
+        }
+        .horizon-decoration {
+            position: absolute; bottom: 40%; left: 0; width: 100%; height: 100px;
+            pointer-events: none; z-index: 2;
         }
 
-        /* --- Pokemon --- */
-        #pokemon-container {
+        /* --- Pokemon (Target) --- */
+        #pokemon-wrapper {
             position: absolute;
-            top: 30%; /* Fixed vertical position */
+            /* Positioned in '3D' space visually */
+            top: 40%; /* Horizon line */
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 200px;
-            height: 200px;
+            width: 200px; height: 200px;
             z-index: 10;
-            pointer-events: none; /* Let touches pass through to input layer */
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
+            pointer-events: none;
+            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
         }
 
-        #pokemon-info {
-            background: rgba(255, 255, 255, 0.8);
+        #pokemon-info-card {
+            background: rgba(255, 255, 255, 0.85);
             padding: 4px 12px;
             border-radius: 12px;
-            font-weight: bold;
+            font-weight: 700;
             color: #333;
             font-size: 14px;
             margin-bottom: 5px;
-            text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            white-space: nowrap;
         }
 
         #pokemon-sprite {
-            width: 160px; /* High quality size */
-            height: 160px;
+            width: 140px; height: 140px;
             object-fit: contain;
-            filter: drop-shadow(0 10px 10px rgba(0,0,0,0.3));
+            filter: drop-shadow(0 15px 10px rgba(0,0,0,0.3));
             animation: idleFloat 3s infinite ease-in-out;
             transition: transform 0.2s, opacity 0.3s;
         }
 
         @keyframes idleFloat {
             0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-10px); }
+            50% { transform: translateY(-8px); }
         }
 
         /* --- Target Rings --- */
-        #target-ring-box {
+        #ring-container {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 140px; height: 140px;
+            pointer-events: none;
+            display: flex; justify-content: center; align-items: center;
         }
         .ring {
             position: absolute;
             border-radius: 50%;
             box-sizing: border-box;
+            border-width: 4px;
+            border-style: solid;
         }
-        #ring-outer {
-            width: 150px;
-            height: 150px;
-            border: 4px solid rgba(255, 255, 255, 0.7);
-        }
+        #ring-outer { width: 100%; height: 100%; border-color: rgba(255,255,255,0.6); }
         #ring-inner {
-            width: 150px;
-            height: 150px;
-            border: 4px solid; 
-            /* Color set dynamically via JS */
+            width: 100%; height: 100%;
             animation: shrinkRing 2s linear infinite;
         }
-        @keyframes shrinkRing {
-            0% { transform: scale(1); }
-            100% { transform: scale(0); }
-        }
+        @keyframes shrinkRing { 0% { transform: scale(1); } 100% { transform: scale(0); } }
 
-        /* --- The Ball --- */
-        #pokeball {
+        /* --- The Ball (Player Object) --- */
+        #ball-container {
             position: absolute;
-            width: 70px;
-            height: 70px;
-            background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png');
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            z-index: 100;
-            /* Centered at bottom initially */
-            left: 50%;
-            bottom: 50px; 
+            width: 60px; height: 60px;
+            left: 50%; bottom: 20%; /* Starting Rest Position */
             transform: translate(-50%, 0);
-            /* Transitions handled by JS for physics, CSS for state changes */
+            z-index: 100;
             pointer-events: none; /* Input handled globally */
+            will-change: transform, top, left;
         }
         
-        .ball-spin {
-            animation: spin 0.3s linear infinite;
+        #pokeball-img {
+            width: 100%; height: 100%;
+            background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png');
+            background-size: contain; background-repeat: no-repeat;
+            border-radius: 50%;
         }
-        @keyframes spin { 100% { transform: translate(-50%, 0) rotate(360deg); } }
+
+        /* Shadow to help depth perception */
+        #ball-shadow {
+            position: absolute;
+            width: 50px; height: 10px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 50%;
+            bottom: -10px; left: 50%;
+            transform: translateX(-50%);
+            z-index: -1;
+            transition: opacity 0.2s;
+        }
 
         /* --- UI Overlay --- */
         #ui-layer {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            z-index: 200;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 200;
         }
 
-        /* Inventory Buttons */
         .hud-btn {
-            position: absolute;
-            bottom: 20px;
-            background: white;
-            padding: 8px 12px;
-            border-radius: 30px;
+            position: absolute; bottom: 20px;
+            background: white; padding: 10px 16px; border-radius: 30px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.2);
-            pointer-events: auto;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-weight: bold;
-            font-size: 14px;
-            cursor: pointer;
+            pointer-events: auto; display: flex; align-items: center; gap: 8px;
+            font-weight: bold; font-size: 14px; cursor: pointer;
         }
         #btn-berry { left: 20px; }
         #btn-ball { right: 20px; }
         
-        .icon-small { width: 24px; height: 24px; }
-
-        /* Menus (Berries/Balls) */
         .bottom-sheet {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: white;
-            border-radius: 20px 20px 0 0;
-            padding: 20px;
-            box-sizing: border-box;
-            transform: translateY(110%);
-            transition: transform 0.3s ease-out;
-            pointer-events: auto;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.2);
-            z-index: 300;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: white; border-radius: 20px 20px 0 0;
+            padding: 20px; box-sizing: border-box;
+            transform: translateY(110%); transition: transform 0.3s ease-out;
+            pointer-events: auto; box-shadow: 0 -10px 30px rgba(0,0,0,0.2);
+            z-index: 300; display: flex; flex-direction: column; gap: 10px;
         }
         .bottom-sheet.open { transform: translateY(0); }
-        .sheet-title { font-weight: bold; text-align: center; color: #555; text-transform: uppercase; }
-        .item-row {
-            display: flex;
-            align-items: center;
-            padding: 10px;
-            border-radius: 8px;
-            background: #f5f5f5;
-        }
-        .item-row:active { background: #e0e0e0; }
-        .item-icon { width: 40px; height: 40px; margin-right: 15px; }
-        .item-details { flex: 1; }
-        .item-name { font-weight: bold; font-size: 14px; }
-        .item-count { font-size: 12px; color: #666; }
+        .item-row { display: flex; align-items: center; padding: 10px; background: #f9f9f9; border-radius: 8px; }
+        .item-row:active { background: #eee; }
 
-        /* Popups */
         #message-toast {
-            position: absolute;
-            top: 45%;
-            left: 50%;
+            position: absolute; top: 30%; left: 50%;
             transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.7);
-            color: white;
-            padding: 10px 20px;
-            border-radius: 20px;
-            font-weight: bold;
-            opacity: 0;
-            transition: opacity 0.3s;
-            pointer-events: none;
-            text-align: center;
-            white-space: nowrap;
+            background: rgba(0,0,0,0.7); color: #fff;
+            padding: 8px 16px; border-radius: 20px;
+            font-weight: bold; font-size: 18px;
+            opacity: 0; transition: opacity 0.3s;
         }
 
         #result-modal {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.95);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            pointer-events: auto;
-            z-index: 400;
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            pointer-events: auto; z-index: 400;
         }
-        .result-data { width: 80%; margin: 10px 0; font-size: 16px; display: flex; justify-content: space-between; }
         .btn-primary {
-            background: #4CAF50; color: white; border: none; padding: 12px 30px;
-            font-size: 18px; border-radius: 30px; margin-top: 20px;
+            background: #4CAF50; color: white; border: none; padding: 14px 40px;
+            font-size: 18px; border-radius: 30px; margin-top: 30px; font-weight: bold;
         }
 
-        /* Active Effects */
         #active-berry-indicator {
-            position: absolute;
-            top: -40px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 40px;
-            display: none;
+            position: absolute; top: -40px; left: 50%;
+            transform: translateX(-50%); width: 40px; display: none;
         }
-        
+
         /* Animations */
-        .shake-anim { animation: shake 1s cubic-bezier(.36,.07,.19,.97) 3; }
+        .shake-anim { animation: shake 0.8s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake {
-            10%, 90% { transform: translate3d(-1px, 0, 0) rotate(-10deg); }
-            20%, 80% { transform: translate3d(2px, 0, 0) rotate(10deg); }
-            30%, 50%, 70% { transform: translate3d(-4px, 0, 0) rotate(-10deg); }
-            40%, 60% { transform: translate3d(4px, 0, 0) rotate(10deg); }
+            10%, 90% { transform: translate3d(-1px, 0, 0) rotate(-5deg); }
+            20%, 80% { transform: translate3d(2px, 0, 0) rotate(5deg); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0) rotate(-5deg); }
+            40%, 60% { transform: translate3d(4px, 0, 0) rotate(5deg); }
         }
-        
-        .catch-success { animation: catchPing 0.5s ease-out; }
-        @keyframes catchPing { 0% { transform: scale(1); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
-        
-        .flee-anim { animation: flee 0.5s ease-in forwards; }
-        @keyframes flee { to { transform: scale(0); opacity: 0; } }
 
     </style>
-    <!-- Service Worker Logic -->
     <script>
+        // Service Worker
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('sw.js').catch(console.error);
         }
@@ -290,521 +214,552 @@
 </head>
 <body>
 
-<div id="game-layer">
-    <!-- Scenery -->
-    <div class="scenery-element tree-left"></div>
-    <div class="scenery-element tree-right"></div>
-    <div class="grass-patch"></div>
+<div id="world-stage">
+    <div class="sky"></div>
+    <div class="ground"></div>
+    <!-- Simple Decorations -->
+    <div class="horizon-decoration">
+        <div style="position:absolute; left: -20px; bottom: 0; width: 80px; height: 100px; background:#2E7D32; border-radius: 50% 50% 0 0;"></div>
+        <div style="position:absolute; right: -20px; bottom: 0; width: 100px; height: 120px; background:#D84315; border-radius: 50% 50% 0 0;"></div>
+    </div>
 
-    <!-- Pokemon -->
-    <div id="pokemon-container">
-        <div id="pokemon-info"></div>
+    <!-- The Target (Pokemon) -->
+    <div id="pokemon-wrapper">
+        <div id="pokemon-info-card">Loading...</div>
         <div style="position: relative;">
             <img id="active-berry-indicator" src="" />
             <img id="pokemon-sprite" src="" />
-            <div id="target-ring-box">
+            <div id="ring-container">
                 <div id="ring-outer" class="ring"></div>
                 <div id="ring-inner" class="ring"></div>
             </div>
         </div>
     </div>
 
-    <!-- The Ball -->
-    <div id="pokeball"></div>
+    <!-- The Physics Object (Ball) -->
+    <div id="ball-container">
+        <div id="pokeball-img"></div>
+        <div id="ball-shadow"></div>
+    </div>
 </div>
 
 <div id="ui-layer">
-    <!-- Toast Message (Nice!, Great!, Escaped!) -->
-    <div id="message-toast"></div>
+    <div id="message-toast">Excellent!</div>
 
-    <!-- HUD Buttons -->
-    <div id="btn-berry" class="hud-btn" onclick="openMenu('berry')">
-        <img class="icon-small" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23D84315'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'/></svg>">
+    <div id="btn-berry" class="hud-btn" onclick="ui.openMenu('berry')">
+        <img style="width:24px" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23D84315'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'/></svg>">
         Berries
     </div>
-    <div id="btn-ball" class="hud-btn" onclick="openMenu('ball')">
-        <img id="current-ball-icon" class="icon-small" src="">
+    <div id="btn-ball" class="hud-btn" onclick="ui.openMenu('ball')">
+        <img id="current-ball-icon" style="width:24px" src="">
         Balls
     </div>
 
-    <!-- Berry Menu -->
     <div id="menu-berry" class="bottom-sheet">
-        <div class="sheet-title">Select a Berry</div>
+        <div style="text-align:center; font-weight:bold; color:#666">SELECT BERRY</div>
         <div id="berry-list-container"></div>
-        <button onclick="closeMenus()" style="padding:10px;">Cancel</button>
+        <button onclick="ui.closeMenus()" style="padding:12px; border-radius:8px; border:1px solid #ddd; background:white;">Close</button>
     </div>
 
-    <!-- Ball Menu -->
     <div id="menu-ball" class="bottom-sheet">
-        <div class="sheet-title">Select a Ball</div>
+        <div style="text-align:center; font-weight:bold; color:#666">SELECT BALL</div>
         <div id="ball-list-container"></div>
-        <button onclick="closeMenus()" style="padding:10px;">Cancel</button>
+        <button onclick="ui.closeMenus()" style="padding:12px; border-radius:8px; border:1px solid #ddd; background:white;">Close</button>
     </div>
 
-    <!-- Result Screen -->
     <div id="result-modal">
-        <h1 id="result-title">Gotcha!</h1>
-        <div id="result-content"></div>
-        <button class="btn-primary" onclick="resetGame()">Next Pokémon</button>
+        <h1 id="result-title" style="font-size: 36px; color:#4CAF50; margin-bottom:10px;">Gotcha!</h1>
+        <div id="result-content" style="width:80%; font-size:18px;"></div>
+        <button class="btn-primary" onclick="game.reset()">Next Pokémon</button>
     </div>
 </div>
 
 <script>
-    // --- Data & Config ---
-    const SPRITE_URL = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/";
-    const ITEM_URL = "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/";
-    
-    // Ensure these URLs are correct for the icons
-    const ITEMS = {
+    /* ================= GAME DATA ================= */
+    const ASSETS = {
+        poke: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/",
+        item: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"
+    };
+
+    const INVENTORY = {
         balls: {
-            'Poke Ball': { img: 'poke-ball.png', rate: 0.0, qty: 10 },
-            'Great Ball': { img: 'great-ball.png', rate: 0.1, qty: 10 },
-            'Ultra Ball': { img: 'ultra-ball.png', rate: 0.2, qty: 10 },
+            'Poke Ball': { img: 'poke-ball.png', rate: 0.0, qty: 20 },
+            'Great Ball': { img: 'great-ball.png', rate: 0.15, qty: 10 },
+            'Ultra Ball': { img: 'ultra-ball.png', rate: 0.3, qty: 5 },
             'Master Ball': { img: 'master-ball.png', rate: 100, qty: 1 }
         },
         berries: {
-            'Razz Berry': { img: 'razz-berry.png', effect: 'catch', val: 0.1, qty: 10 },
-            'Nanab Berry': { img: 'nanab-berry.png', effect: 'calm', val: 0.0, qty: 10 },
-            'Pinap Berry': { img: 'pinap-berry.png', effect: 'candy', val: 0.0, qty: 10 }
+            'Razz Berry': { img: 'razz-berry.png', mod: 0.2, qty: 5 },
+            'Nanab Berry': { img: 'nanab-berry.png', mod: 0.0, qty: 5 },
+            'Pinap Berry': { img: 'pinap-berry.png', mod: 0.0, qty: 5 }
         }
     };
 
-    const POKEMON_DB = [
-        { id: 25, name: 'Pikachu' }, { id: 1, name: 'Bulbasaur' },
-        { id: 4, name: 'Charmander' }, { id: 7, name: 'Squirtle' },
-        { id: 133, name: 'Eevee' }, { id: 143, name: 'Snorlax' },
-        { id: 150, name: 'Mewtwo' }, { id: 584, name: 'Vanillish' }
+    const POKEDEX = [
+        {id:25, name:"Pikachu"}, {id:1, name:"Bulbasaur"}, {id:4, name:"Charmander"},
+        {id:7, name:"Squirtle"}, {id:133, name:"Eevee"}, {id:150, name:"Mewtwo"},
+        {id:143, name:"Snorlax"}, {id:94, name:"Gengar"}, {id:384, name:"Rayquaza"}
     ];
 
-    // --- State ---
-    let state = {
-        pokemon: null,
-        activeBall: 'Poke Ball',
-        activeBerry: null,
-        phase: 'idle', // idle, holding, flying, catching, result
-        xp: 0,
-        candy: 0
+    /* ================= PHYSICS ENGINE ================= */
+    const PHYSICS = {
+        gravity: 0.002, // Drag down
+        throwThreshold: -1.2, // Min velocityY to count as a throw
+        depthTarget: 100, // The Z-depth where the pokemon exists
+        friction: 0.98
     };
 
-    // --- Physics Vars ---
-    let input = { startX: 0, startY: 0, currentX: 0, currentY: 0, history: [], holding: false };
-    let ballPhys = { x: 50, y: 10, scale: 1, rot: 0, vx: 0, vy: 0, spin: 0 }; // x/y in percentages or px
-    let animationFrame;
-
-    // --- Init ---
-    function init() {
-        spawnPokemon();
-        updateInventoryUI();
+    /* ================= APP CONTROLLER ================= */
+    const app = {
+        state: {
+            pokemon: null,
+            ball: 'Poke Ball',
+            berry: null,
+            phase: 'idle', // idle, holding, flying, catching, result
+            xp: 0,
+            candy: 0
+        },
         
-        // GLOBAL INPUT LISTENERS (The "Rick Solo" Fix)
-        const zone = document.getElementById('game-layer');
-        
-        // Touch events
-        zone.addEventListener('touchstart', onInputStart, {passive: false});
-        zone.addEventListener('touchmove', onInputMove, {passive: false});
-        zone.addEventListener('touchend', onInputEnd, {passive: false});
-        
-        // Mouse events (for desktop debugging)
-        zone.addEventListener('mousedown', onInputStart);
-        window.addEventListener('mousemove', onInputMove);
-        window.addEventListener('mouseup', onInputEnd);
-    }
-
-    function spawnPokemon() {
-        const p = POKEMON_DB[Math.floor(Math.random() * POKEMON_DB.length)];
-        state.pokemon = { ...p, cp: Math.floor(Math.random() * 2000) + 100 };
-        state.activeBerry = null;
-        state.phase = 'idle';
-        
-        // Visuals
-        document.getElementById('pokemon-sprite').src = SPRITE_URL + state.pokemon.id + '.png';
-        document.getElementById('pokemon-sprite').style.opacity = '1';
-        document.getElementById('pokemon-sprite').classList.remove('flee-anim');
-        document.getElementById('pokemon-info').innerText = `${state.pokemon.name} CP ${state.pokemon.cp}`;
-        document.getElementById('active-berry-indicator').style.display = 'none';
-        
-        // Ring
-        const ringColor = Math.random() > 0.5 ? '#FF0000' : '#FFA500'; // Red or Orange
-        document.getElementById('ring-inner').style.borderColor = ringColor;
-        document.getElementById('target-ring-box').style.display = 'flex';
-
-        resetBall();
-    }
-
-    // --- Input Handling ---
-    function onInputStart(e) {
-        if (state.phase !== 'idle') return;
-        
-        const point = e.touches ? e.touches[0] : e;
-        const rect = document.body.getBoundingClientRect();
-        
-        // Allow grabbing from anywhere in the bottom 40% of the screen
-        const touchYPercent = ((point.clientY - rect.top) / rect.height) * 100;
-        
-        if (touchYPercent > 60) {
-            e.preventDefault(); // Prevent scrolling
-            state.phase = 'holding';
-            input.holding = true;
-            input.startX = point.clientX;
-            input.startY = point.clientY;
-            input.history = [];
+        init: () => {
+            ui.updateInventory();
+            game.spawn();
             
-            // Snap ball to finger immediately
-            updateBallPosition(point.clientX, point.clientY);
+            // Global Input Listeners (The "Rick Solo" Catch-All)
+            const stage = document.getElementById('world-stage');
+            stage.addEventListener('touchstart', input.start, {passive: false});
+            stage.addEventListener('touchmove', input.move, {passive: false});
+            stage.addEventListener('touchend', input.end, {passive: false});
             
-            // Add slight scale up
-            document.getElementById('pokeball').style.transition = 'transform 0.1s';
-            ballPhys.scale = 1.2;
-            renderBall();
+            // Mouse fallbacks
+            stage.addEventListener('mousedown', input.start);
+            window.addEventListener('mousemove', input.move);
+            window.addEventListener('mouseup', input.end);
         }
-    }
+    };
 
-    function onInputMove(e) {
-        if (!input.holding || state.phase !== 'holding') return;
-        e.preventDefault();
-        
-        const point = e.touches ? e.touches[0] : e;
-        
-        // Add to history for velocity calc
-        const now = Date.now();
-        input.history.push({ x: point.clientX, y: point.clientY, t: now });
-        if (input.history.length > 5) input.history.shift(); // Keep last 5 frames
-        
-        // Visual update
-        updateBallPosition(point.clientX, point.clientY);
-        
-        // Curve detection: Check X movement vs Y movement variance
-        // Simple visual spin
-        ballPhys.rot += (point.clientX - input.currentX) * 2;
-        input.currentX = point.clientX;
-        input.currentY = point.clientY;
-        
-        renderBall();
-    }
+    /* ================= INPUT HANDLER ================= */
+    const input = {
+        data: { active: false, startX:0, startY:0, lastX:0, lastY:0, history:[] },
 
-    function onInputEnd(e) {
-        if (!input.holding) return;
-        input.holding = false;
-        
-        // Calculate Velocity
-        const now = Date.now();
-        const last = input.history[input.history.length - 1];
-        const first = input.history[0];
-        
-        if (!last || !first || (now - last.t > 200)) {
-            // Drop ball if holding too still
-            resetBall();
-            return;
+        start: (e) => {
+            if (app.state.phase !== 'idle') return;
+            const pt = e.touches ? e.touches[0] : e;
+            const rect = document.body.getBoundingClientRect();
+            
+            // Interaction Area: Bottom 50% of screen
+            if (pt.clientY < rect.height * 0.5) return;
+
+            e.preventDefault();
+            input.data.active = true;
+            input.data.startX = pt.clientX;
+            input.data.startY = pt.clientY;
+            input.data.lastX = pt.clientX;
+            input.data.lastY = pt.clientY;
+            input.data.history = [];
+            
+            app.state.phase = 'holding';
+            
+            // Visual Snap
+            ball.updateVisual(pt.clientX, pt.clientY, 1, 0);
+            document.getElementById('ball-container').style.transition = 'transform 0.1s';
+            ball.scale = 1.2; 
+        },
+
+        move: (e) => {
+            if (!input.data.active) return;
+            e.preventDefault(); // Stop scrolling
+            const pt = e.touches ? e.touches[0] : e;
+            
+            // Physics History for Velocity
+            const now = Date.now();
+            input.data.history.push({x: pt.clientX, y: pt.clientY, t: now});
+            if (input.data.history.length > 6) input.data.history.shift();
+
+            // Curve Logic (Spin)
+            const deltaX = pt.clientX - input.data.lastX;
+            ball.rotation += deltaX * 1.5;
+
+            input.data.lastX = pt.clientX;
+            input.data.lastY = pt.clientY;
+
+            // Visual Follow
+            ball.updateVisual(pt.clientX, pt.clientY, 1.2, ball.rotation);
+        },
+
+        end: (e) => {
+            if (!input.data.active) return;
+            input.data.active = false;
+            
+            // Calculate Vector
+            const hist = input.data.history;
+            if (hist.length < 2) { game.resetBall(); return; }
+            
+            const start = hist[0];
+            const end = hist[hist.length-1];
+            const dt = end.t - start.t;
+            
+            // Anti-Cheese: If user held too long, drop it
+            if (Date.now() - end.t > 150) { game.resetBall(); return; }
+
+            const vx = (end.x - start.x) / dt;
+            const vy = (end.y - start.y) / dt; // Negative is UP
+
+            // Anti-Cheese: Minimum Speed Check
+            if (vy > -0.8) { 
+                // Too slow, just drop
+                game.dropBall(); 
+            } else {
+                // Valid Throw
+                game.throwBall(vx, vy);
+            }
         }
+    };
 
-        const dt = last.t - first.t;
-        const dx = last.x - first.x;
-        const dy = last.y - first.y; // Negative is UP
+    /* ================= BALL OBJECT ================= */
+    const ball = {
+        el: document.getElementById('ball-container'),
+        shadow: document.getElementById('ball-shadow'),
+        x: 0, y: 0, z: 0,
+        vx: 0, vy: 0, vz: 0,
+        rotation: 0, scale: 1,
 
-        const velocityY = dy / dt; // pixels per ms
-        
-        // Threshold for throw
-        if (velocityY < -0.5) { // Threshold for throwing UP
-            throwBall(dx / dt, velocityY);
-        } else {
-            resetBall();
+        updateVisual: (screenX, screenY, scale, rot) => {
+            // Apply 2D screen coordinates directly during 'holding'
+            ball.el.style.left = screenX + 'px';
+            ball.style.top = screenY + 'px'; // Using .style directly on obj for logic, el for DOM
+            ball.el.style.top = screenY + 'px';
+            ball.el.style.transform = `translate(-50%, -50%) scale(${scale}) rotate(${rot}deg)`;
+            
+            // Shadow logic
+            ball.shadow.style.opacity = scale > 1 ? 1 : 1 - (1-scale);
         }
-    }
+    };
 
-    function updateBallPosition(screenX, screenY) {
-        const ball = document.getElementById('pokeball');
-        // Center ball on finger
-        ball.style.left = screenX + 'px';
-        ball.style.top = screenY + 'px';
-        ball.style.bottom = 'auto';
-        ball.style.transform = `translate(-50%, -50%) scale(${ballPhys.scale}) rotate(${ballPhys.rot}deg)`;
-    }
+    /* ================= GAME LOGIC ================= */
+    const game = {
+        spawn: () => {
+            const p = POKEDEX[Math.floor(Math.random() * POKEDEX.length)];
+            const cp = Math.floor(Math.random() * 2500) + 100;
+            app.state.pokemon = { ...p, cp: cp };
+            app.state.phase = 'idle';
+            app.state.activeBerry = null;
 
-    function resetBall() {
-        state.phase = 'idle';
-        const ball = document.getElementById('pokeball');
-        ball.style.transition = 'all 0.3s ease-out';
-        ball.style.left = '50%';
-        ball.style.top = 'auto';
-        ball.style.bottom = '50px';
-        ball.style.transform = 'translate(-50%, 0) scale(1) rotate(0deg)';
-        ball.style.display = 'block';
-        
-        ballPhys = { scale: 1, rot: 0, vx: 0, vy: 0 };
-    }
-
-    // --- Physics Engine ---
-    function throwBall(vx, vy) {
-        if (ITEMS.balls[state.activeBall].qty <= 0) {
-            showToast("Out of balls!");
-            resetBall();
-            return;
-        }
-
-        // Deduct ball
-        ITEMS.balls[state.activeBall].qty--;
-        updateInventoryUI();
-
-        state.phase = 'flying';
-        const ball = document.getElementById('pokeball');
-        ball.style.transition = 'none'; // Physics takes over
-        
-        // Set Physics Initial State
-        const rect = ball.getBoundingClientRect();
-        let posX = rect.left + rect.width/2;
-        let posY = rect.top + rect.height/2;
-        
-        // Spin factor (simplified)
-        let curveX = vx * 20; 
-
-        // Animation Loop
-        let startTime = null;
-        
-        function fly(timestamp) {
-            if (!startTime) startTime = timestamp;
-            const progress = (timestamp - startTime);
+            // DOM Updates
+            document.getElementById('pokemon-sprite').src = ASSETS.poke + p.id + '.png';
+            document.getElementById('pokemon-sprite').style.opacity = 1;
+            document.getElementById('pokemon-sprite').style.transform = 'scale(1)';
+            document.getElementById('pokemon-info-card').textContent = `${p.name} CP ${cp}`;
             
-            // Move Up (Linear + Gravity)
-            posY += vy * 15; // Speed multiplier
-            vy += 0.03; // Gravity
-            
-            // Move Sideways (Curve)
-            posX += vx * 15;
-            
-            // Scale Down (Perspective)
-            let scale = 1.2 - (progress / 800);
-            if (scale < 0.3) scale = 0.3;
+            // Ring Color
+            const diff = Math.random();
+            const color = diff > 0.6 ? '#FF0000' : (diff > 0.3 ? '#FFA500' : '#4CAF50');
+            document.getElementById('ring-inner').style.borderColor = color;
+            document.getElementById('ring-container').style.display = 'flex';
+            document.getElementById('active-berry-indicator').style.display = 'none';
 
-            // Render
-            ball.style.left = posX + 'px';
-            ball.style.top = posY + 'px';
-            ball.style.transform = `translate(-50%, -50%) scale(${scale}) rotate(${progress}deg)`;
+            game.resetBall();
+        },
 
-            // Hit Detection (Pokemon is roughly at top 30% of screen)
-            const pokeElem = document.getElementById('pokemon-container');
-            const pokeRect = pokeElem.getBoundingClientRect();
-            const pokeCenterY = pokeRect.top + pokeRect.height/2;
+        resetBall: () => {
+            app.state.phase = 'idle';
+            ball.el.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+            ball.el.style.left = '50%';
+            ball.el.style.top = '85%'; // Rest position
+            ball.el.style.transform = 'translate(-50%, -50%) scale(1) rotate(0deg)';
+            ball.rotation = 0;
+            ball.shadow.style.opacity = 1;
+            ball.el.style.display = 'block';
+        },
+
+        dropBall: () => {
+            // Anti-cheese fail animation
+            ball.el.style.transition = 'top 0.5s ease-in';
+            ball.el.style.top = '100%';
+            ui.toast("Throw harder!");
+            setTimeout(game.resetBall, 600);
+        },
+
+        throwBall: (vx, vy) => {
+            // Check Inventory
+            if (INVENTORY.balls[app.state.ball].qty <= 0) {
+                ui.toast("Out of balls!");
+                game.resetBall();
+                return;
+            }
+            INVENTORY.balls[app.state.ball].qty--;
+            ui.updateInventory();
+
+            app.state.phase = 'flying';
+            ball.el.style.transition = 'none'; // Physics Mode
+
+            // Convert 2D input to 3D Physics vectors
+            // velocity Y (screen up) becomes velocity Z (depth)
+            // velocity X (screen side) remains velocity X
+            // We need a new velocity Y for gravity arc (Kick up)
             
-            // Passed the pokemon plane?
-            if (posY <= pokeCenterY + 20 && posY >= pokeCenterY - 20) {
-                // Check X bounds
-                if (posX >= pokeRect.left && posX <= pokeRect.right) {
-                    checkHit(scale);
-                    return; // Stop animation
+            let throwPower = Math.abs(vy); // 0.8 to 3.0 usually
+            
+            ball.x = input.data.lastX;
+            ball.y = input.data.lastY;
+            ball.z = 0;
+
+            ball.vx = vx * 15; // Sideways speed
+            ball.vz = throwPower * 3.5; // Depth speed (Forward)
+            ball.vy = -18; // Initial Upward kick (Arc)
+            
+            // Curve factor
+            let curve = (ball.rotation / 50) * 0.5;
+
+            game.loop();
+        },
+
+        loop: () => {
+            if (app.state.phase !== 'flying') return;
+
+            // Physics Steps
+            ball.z += ball.vz;
+            ball.x += ball.vx;
+            ball.y += ball.vy;
+
+            // Curve Logic
+            ball.vx -= (ball.rotation * 0.005); // Spin affects X
+
+            // Gravity
+            ball.vy += 0.9; 
+
+            // Air Resistance
+            ball.vz *= 0.99;
+
+            // Visual Rendering
+            // Perspective Projection: x = x / z depth factor
+            // Simple approach: Scale based on Z, move Y up based on Z (horizon)
+            
+            const maxZ = 120; // Distance to pokemon
+            const progress = ball.z / maxZ; // 0 to 1
+            
+            // Scale Calculation (Pseudo-3D)
+            let scale = 1 - (progress * 0.7); // Ends at 0.3 scale
+            if (scale < 0.2) scale = 0.2;
+
+            ball.el.style.left = ball.x + 'px';
+            ball.el.style.top = ball.y + 'px';
+            ball.el.style.transform = `translate(-50%, -50%) scale(${scale}) rotate(${ball.rotation += 15}deg)`;
+            ball.shadow.style.opacity = 1 - progress;
+
+            // Collision Check
+            if (ball.z >= PHYSICS.depthTarget) {
+                // We reached the depth plane of the Pokemon
+                game.checkCollision(scale);
+                return; // Stop loop
+            }
+
+            // Miss Check (Ground or Sky)
+            if (ball.y > window.innerHeight || ball.y < -100) {
+                ui.toast("Miss!");
+                setTimeout(game.resetBall, 800);
+                return;
+            }
+
+            requestAnimationFrame(game.loop);
+        },
+
+        checkCollision: (scale) => {
+            // Get Pokemon Screen Rect
+            const pokeEl = document.getElementById('pokemon-wrapper');
+            const rect = pokeEl.getBoundingClientRect();
+            const centerX = rect.left + rect.width/2;
+            const centerY = rect.top + rect.height/2;
+
+            // Distance Check (Circle vs Circle basically)
+            const dist = Math.sqrt(Math.pow(ball.x - centerX, 2) + Math.pow(ball.y - centerY, 2));
+            const hitRadius = 70; // Generous hit box
+
+            if (dist < hitRadius) {
+                // HIT!
+                app.state.phase = 'catching';
+                
+                // Ring Size Calculation
+                const inner = document.getElementById('ring-inner').offsetWidth;
+                const outer = document.getElementById('ring-outer').offsetWidth;
+                const accuracy = inner/outer;
+                
+                let bonus = 1;
+                let msg = "";
+                if (accuracy < 0.2) { msg = "Excellent!"; bonus = 1.85; }
+                else if (accuracy < 0.5) { msg = "Great!"; bonus = 1.5; }
+                else if (accuracy < 0.9) { msg = "Nice!"; bonus = 1.15; }
+                if (msg) ui.toast(msg);
+
+                // Snap Animation
+                ball.el.style.transition = 'all 0.1s';
+                ball.el.style.left = centerX + 'px';
+                ball.el.style.top = centerY + 'px';
+                ball.el.style.transform = `translate(-50%, -50%) scale(0.6)`;
+                
+                // Hide UI
+                document.getElementById('ring-container').style.display = 'none';
+                
+                // Suck Animation
+                setTimeout(() => {
+                    const sprite = document.getElementById('pokemon-sprite');
+                    sprite.style.transform = 'scale(0) rotate(180deg)';
+                    sprite.style.opacity = 0;
+                    
+                    // Ball drops to ground
+                    setTimeout(() => {
+                        ball.el.style.transition = 'top 0.4s ease-in';
+                        ball.el.style.top = (centerY + 100) + 'px'; // Drop
+                        game.startShake(bonus);
+                    }, 400);
+                }, 100);
+
+            } else {
+                // Missed (Too far left/right/high/low) but correct depth
+                ui.toast("Miss!");
+                ball.el.style.transition = 'top 0.5s ease-in';
+                ball.el.style.top = (window.innerHeight + 100) + 'px'; // Fall off screen
+                setTimeout(game.resetBall, 800);
+            }
+        },
+
+        startShake: (bonus) => {
+            let shakes = 0;
+            const maxShakes = 3;
+            
+            // Calculate Catch Chance
+            let baseRate = 0.4;
+            baseRate += INVENTORY.balls[app.state.ball].rate;
+            if (app.state.activeBerry) baseRate += INVENTORY.berries[app.state.activeBerry].mod;
+            baseRate *= bonus;
+            
+            if (app.state.ball === 'Master Ball') baseRate = 100;
+
+            function doShake() {
+                if (shakes === maxShakes) {
+                    game.captureSuccess(bonus);
+                    return;
+                }
+                
+                // Check roll
+                if (Math.random() < baseRate) {
+                    shakes++;
+                    ball.el.style.animation = 'none';
+                    ball.el.offsetHeight; 
+                    ball.el.style.animation = 'shake 0.8s';
+                    setTimeout(doShake, 1100);
+                } else {
+                    game.breakFree();
                 }
             }
+            setTimeout(doShake, 500);
+        },
 
-            // Missed (went off screen or fell)
-            if (posY < -50 || posY > window.innerHeight) {
-                showToast("Miss!");
-                setTimeout(resetBall, 500);
-                return;
-            }
+        breakFree: () => {
+            ui.toast("Broke free!");
+            ball.el.style.display = 'none';
+            
+            const sprite = document.getElementById('pokemon-sprite');
+            sprite.style.transform = 'scale(1)';
+            sprite.style.opacity = 1;
+            
+            document.getElementById('ring-container').style.display = 'flex';
+            app.state.activeBerry = null;
+            document.getElementById('active-berry-indicator').style.display = 'none';
+            
+            setTimeout(game.resetBall, 1500);
+        },
 
-            if (state.phase === 'flying') {
-                requestAnimationFrame(fly);
-            }
+        captureSuccess: (bonus) => {
+            ball.el.classList.add('catch-success'); // Darken ball
+            
+            let xp = Math.floor(100 * bonus);
+            let candy = app.state.activeBerry === 'Pinap Berry' ? 6 : 3;
+            
+            app.state.xp += xp;
+            app.state.candy += candy;
+
+            const modal = document.getElementById('result-modal');
+            modal.style.display = 'flex';
+            document.getElementById('result-content').innerHTML = `
+                <div style="display:flex; justify-content:space-between; margin:5px 0;"><span>XP</span> <b>+${xp}</b></div>
+                <div style="display:flex; justify-content:space-between; margin:5px 0;"><span>Earned:</span></div>
+                <div style="display:flex; justify-content:space-between; margin:5px 0; color:#E91E63"><span>Candy:</span> <b>+${candy}</b></div>
+                <div style="display:flex; justify-content:space-between; margin:5px 0; color:#9C27B0"><span>Stardust:</span> <b>+100</b></div>
+            `;
+        },
+
+        reset: () => {
+            document.getElementById('result-modal').style.display = 'none';
+            ball.el.classList.remove('catch-success');
+            game.spawn();
         }
-        
-        requestAnimationFrame(fly);
-    }
+    };
 
-    function checkHit(scale) {
-        state.phase = 'catching';
-        
-        // Calculate Accuracy based on ring size
-        const innerRing = document.getElementById('ring-inner');
-        const outerRing = document.getElementById('ring-outer');
-        const ratio = innerRing.offsetWidth / outerRing.offsetWidth; // 0 to 1
-        
-        let bonus = 1;
-        let msg = "";
-        
-        if (ratio < 0.2) { msg = "Excellent!"; bonus = 2.0; }
-        else if (ratio < 0.5) { msg = "Great!"; bonus = 1.5; }
-        else if (ratio < 0.9) { msg = "Nice!"; bonus = 1.2; }
-        
-        if (msg) showToast(msg);
-        
-        // Hide Rings
-        document.getElementById('target-ring-box').style.display = 'none';
-        
-        // Animate Ball Capture
-        const ball = document.getElementById('pokeball');
-        const pokeSprite = document.getElementById('pokemon-sprite');
-        
-        // Snap ball to center of pokemon
-        const pokeRect = document.getElementById('pokemon-container').getBoundingClientRect();
-        ball.style.top = (pokeRect.top + pokeRect.height/2) + 'px';
-        ball.style.left = (pokeRect.left + pokeRect.width/2) + 'px';
-        ball.style.transform = `translate(-50%, -50%) scale(0.6)`;
-        
-        // Suck pokemon in
-        pokeSprite.style.transition = 'all 0.4s';
-        pokeSprite.style.transform = 'scale(0)';
-        pokeSprite.style.opacity = '0';
-        
-        setTimeout(() => {
-            // Ball drops to ground
-            ball.style.transition = 'all 0.5s ease-in';
-            ball.style.top = (window.innerHeight * 0.7) + 'px'; // Ground level
+    /* ================= UI CONTROLLER ================= */
+    const ui = {
+        toast: (msg) => {
+            const el = document.getElementById('message-toast');
+            el.innerText = msg;
+            el.style.opacity = 1;
+            el.style.top = "25%";
+            setTimeout(() => { el.style.opacity = 0; el.style.top = "30%"; }, 1500);
+        },
+
+        openMenu: (type) => {
+            if (app.state.phase !== 'idle') return;
+            document.getElementById('menu-' + type).classList.add('open');
+            const container = document.getElementById(type + '-list-container');
+            container.innerHTML = '';
             
-            setTimeout(() => {
-                // Shake Logic
-                startShakeCheck(bonus);
-            }, 500);
-        }, 400);
-    }
-
-    function startShakeCheck(throwBonus) {
-        const ball = document.getElementById('pokeball');
-        let shakes = 0;
-        
-        function shake() {
-            if (shakes >= 3) {
-                // Caught!
-                showResult(true, throwBonus);
-                return;
+            const list = INVENTORY[type === 'ball' ? 'balls' : 'berries'];
+            
+            for (let [key, val] of Object.entries(list)) {
+                let row = document.createElement('div');
+                row.className = 'item-row';
+                row.onclick = () => ui.selectItem(type, key);
+                row.innerHTML = `
+                    <img src="${ASSETS.item + val.img}" style="width:40px; margin-right:15px">
+                    <div style="flex:1">
+                        <div style="font-weight:bold">${key}</div>
+                        <div style="font-size:12px; color:#888">x${val.qty}</div>
+                    </div>
+                `;
+                if (val.qty < 1) row.style.opacity = 0.5;
+                container.appendChild(row);
             }
-            
-            // Roll calculation
-            let rate = 0.3 + ITEMS.balls[state.activeBall].rate;
-            if (state.activeBerry === 'Razz Berry') rate += 0.2;
-            rate *= throwBonus;
-            
-            if (state.activeBall === 'Master Ball') rate = 999;
+        },
 
-            if (Math.random() < rate) {
-                // Success shake
-                shakes++;
-                ball.classList.add('shake-anim');
-                ball.style.animation = 'none'; 
-                ball.offsetHeight; /* trigger reflow */
-                ball.style.animation = 'shake 0.8s';
-                setTimeout(shake, 1000);
+        closeMenus: () => {
+            document.querySelectorAll('.bottom-sheet').forEach(el => el.classList.remove('open'));
+        },
+
+        selectItem: (type, key) => {
+            const item = INVENTORY[type === 'ball' ? 'balls' : 'berries'][key];
+            if (item.qty <= 0) return;
+
+            if (type === 'ball') {
+                app.state.ball = key;
             } else {
-                // Break out!
-                ball.style.display = 'none';
-                const pokeSprite = document.getElementById('pokemon-sprite');
-                pokeSprite.style.transform = 'scale(1)';
-                pokeSprite.style.opacity = '1';
-                pokeSprite.classList.add('flee-anim'); // Actually it's an appear anim here reuse
-                showToast("Broke free!");
-                document.getElementById('target-ring-box').style.display = 'flex';
-                state.activeBerry = null; // Berry consumed
-                document.getElementById('active-berry-indicator').style.display = 'none';
-                setTimeout(resetBall, 1500);
+                if (app.state.activeBerry) { ui.toast("Berry already active"); return; }
+                INVENTORY.berries[key].qty--;
+                app.state.activeBerry = key;
+                document.getElementById('active-berry-indicator').src = ASSETS.item + item.img;
+                document.getElementById('active-berry-indicator').style.display = 'block';
+                ui.toast(key + " used!");
             }
+            ui.updateInventory();
+            ui.closeMenus();
+        },
+
+        updateInventory: () => {
+            const b = INVENTORY.balls[app.state.ball];
+            document.getElementById('current-ball-icon').src = ASSETS.item + b.img;
+            document.getElementById('pokeball-img').style.backgroundImage = `url('${ASSETS.item + b.img}')`;
         }
-        shake();
-    }
+    };
 
-    function renderBall() {
-        // Wrapper for requestAnimationFrame updates if needed
-    }
-
-    // --- UI & Systems ---
-    function openMenu(type) {
-        document.getElementById('menu-' + type).classList.add('open');
-        renderInventory(type);
-    }
-    
-    function closeMenus() {
-        document.querySelectorAll('.bottom-sheet').forEach(el => el.classList.remove('open'));
-    }
-
-    function renderInventory(type) {
-        const container = document.getElementById(type + '-list-container');
-        container.innerHTML = '';
-        const list = ITEMS[type === 'ball' ? 'balls' : 'berries'];
-        
-        for (const [name, data] of Object.entries(list)) {
-            const div = document.createElement('div');
-            div.className = 'item-row';
-            div.onclick = () => {
-                if (data.qty > 0) selectItem(type, name);
-            };
-            
-            div.innerHTML = `
-                <img src="${ITEM_URL + data.img}" class="item-icon">
-                <div class="item-details">
-                    <div class="item-name">${name}</div>
-                    <div class="item-count">x${data.qty}</div>
-                </div>
-            `;
-            if (data.qty === 0) div.style.opacity = 0.5;
-            container.appendChild(div);
-        }
-    }
-
-    function selectItem(type, name) {
-        if (type === 'ball') {
-            state.activeBall = name;
-        } else {
-            if (state.activeBerry) {
-                showToast("Berry already active!");
-                closeMenus();
-                return;
-            }
-            ITEMS.berries[name].qty--;
-            state.activeBerry = name;
-            // Visual
-            const ind = document.getElementById('active-berry-indicator');
-            ind.src = ITEM_URL + ITEMS.berries[name].img;
-            ind.style.display = 'block';
-            showToast(name + " used!");
-        }
-        updateInventoryUI();
-        closeMenus();
-    }
-
-    function updateInventoryUI() {
-        const currentBallData = ITEMS.balls[state.activeBall];
-        document.getElementById('current-ball-icon').src = ITEM_URL + currentBallData.img;
-        document.getElementById('pokeball').style.backgroundImage = `url('${ITEM_URL + currentBallData.img}')`;
-    }
-
-    function showToast(msg) {
-        const t = document.getElementById('message-toast');
-        t.innerText = msg;
-        t.style.opacity = 1;
-        t.style.top = "40%";
-        setTimeout(() => {
-            t.style.opacity = 0;
-            t.style.top = "45%";
-        }, 1500);
-    }
-
-    function showResult(success, bonusMult) {
-        const modal = document.getElementById('result-modal');
-        const content = document.getElementById('result-content');
-        modal.style.display = 'flex';
-        
-        if (success) {
-            let xp = 100 * (bonusMult || 1);
-            let c = 3;
-            if (state.activeBerry === 'Pinap Berry') c = 6;
-            
-            xp = Math.floor(xp);
-            state.xp += xp;
-            
-            document.getElementById('result-title').innerText = "Gotcha!";
-            document.getElementById('result-title').style.color = "#4CAF50";
-            content.innerHTML = `
-                <div class="result-data"><span>XP Earned:</span> <b>+${xp}</b></div>
-                <div class="result-data"><span>Candy:</span> <b>+${c}</b></div>
-                <div class="result-data"><span>Stardust:</span> <b>+100</b></div>
-            `;
-        }
-    }
-    
-    function resetGame() {
-        document.getElementById('result-modal').style.display = 'none';
-        spawnPokemon();
-    }
-
-    // Run
-    window.onload = init;
+    // START
+    window.onload = app.init;
 
 </script>
 </body>
