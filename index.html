@@ -3,671 +3,483 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PokeCatch Pro</title>
+    <title>PokeCatch Pro - Spin Update</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#87CEEB">
-    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png">
 
     <style>
+        /* Base Reset */
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
             overflow: hidden; background-color: #87CEEB;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            user-select: none; -webkit-user-select: none; touch-action: none;
+            touch-action: none; user-select: none; -webkit-user-select: none;
         }
 
-        #world-stage {
+        #world {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            perspective: 600px; /* Stronger 3D perspective */
-            overflow: hidden;
+            perspective: 700px; /* Depth perception */
             background: linear-gradient(to bottom, #4FC3F7 0%, #E1F5FE 60%, #81C784 60%, #43A047 100%);
         }
 
-        /* --- Environment --- */
-        .scenery-hill {
-            position: absolute; bottom: 40%; 
-            width: 300px; height: 150px; 
-            border-radius: 50% 50% 0 0; 
-            z-index: 1; pointer-events: none;
-        }
+        /* Scenery */
+        .hill { position: absolute; bottom: 40%; width: 300px; height: 150px; border-radius: 50% 50% 0 0; z-index: 1; pointer-events: none; }
         
-        /* --- Target (Pokemon) --- */
-        #pokemon-wrapper {
-            position: absolute;
-            top: 45%; /* Lowered slightly to appear closer */
-            left: 50%;
-            transform: translate3d(-50%, -50%, -100px); /* Starts "deep" in 3D space */
-            width: 280px; height: 280px; /* Bigger target area */
-            z-index: 10;
-            pointer-events: none;
+        /* Target (Pokemon) */
+        #pokemon-wrap {
+            position: absolute; top: 45%; left: 50%;
+            transform: translate3d(-50%, -50%, -100px);
+            width: 250px; height: 250px; z-index: 10;
             display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-            will-change: transform;
+            pointer-events: none;
         }
-
-        #pokemon-info {
-            background: rgba(255, 255, 255, 0.9);
-            padding: 6px 16px; border-radius: 20px;
-            font-weight: 800; color: #444; font-size: 16px;
-            margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-        }
-
-        #pokemon-sprite {
-            width: 200px; height: 200px; /* Much Bigger */
-            object-fit: contain;
-            filter: drop-shadow(0 20px 15px rgba(0,0,0,0.2));
+        #poke-sprite {
+            width: 180px; height: 180px; object-fit: contain;
+            filter: drop-shadow(0 15px 10px rgba(0,0,0,0.2));
             animation: breathe 3s infinite ease-in-out;
-            transition: opacity 0.2s, transform 0.3s;
+            transition: opacity 0.2s, transform 0.2s;
         }
+        @keyframes breathe { 50% { transform: scale(1.05); } }
 
-        @keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
-
-        /* --- Rings --- */
-        #ring-system {
-            position: absolute; top: 55%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 160px; height: 160px;
-            display: flex; justify-content: center; align-items: center;
+        /* Rings */
+        #ring-sys {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 140px; height: 140px; display: flex; justify-content: center; align-items: center;
         }
         .ring { position: absolute; border-radius: 50%; box-sizing: border-box; }
-        #ring-outer { width: 100%; height: 100%; border: 4px solid rgba(255,255,255,0.8); }
-        #ring-inner { width: 100%; height: 100%; border: 4px solid; animation: shrink 1.8s linear infinite; }
+        #r-out { width: 100%; height: 100%; border: 4px solid rgba(255,255,255,0.7); }
+        #r-in { width: 100%; height: 100%; border: 4px solid; animation: shrink 1.8s linear infinite; }
         @keyframes shrink { 0% { width: 100%; height: 100%; opacity: 0; } 10% { opacity: 1; } 100% { width: 0%; height: 0%; } }
 
-        /* --- The Ball --- */
-        #ball-wrapper {
-            position: absolute;
-            width: 80px; height: 80px; /* Larger Ball */
+        /* Ball */
+        #ball-wrap {
+            position: absolute; width: 70px; height: 70px;
             left: 50%; bottom: 15%; 
-            transform: translate3d(-50%, 0, 0);
-            z-index: 100;
-            will-change: transform, left, top;
-            pointer-events: none; 
+            transform: translate3d(-50%, 0, 0); /* Centered X */
+            z-index: 100; pointer-events: none; will-change: transform, left, top;
         }
-
-        #pokeball-graphic {
+        #ball-img {
             width: 100%; height: 100%;
             background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png');
             background-size: contain; background-repeat: no-repeat;
             border-radius: 50%;
-            /* Physics Rotation applied here */
         }
 
-        #ball-shadow {
-            position: absolute; bottom: -15px; left: 10px; right: 10px; height: 12px;
-            background: rgba(0,0,0,0.2); border-radius: 50%;
-            z-index: -1; transition: opacity 0.2s;
-        }
-
-        /* --- UI --- */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 200; }
-        
+        /* UI */
+        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 200; }
         .toast {
-            position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
-            background: #fff; color: #333; padding: 10px 25px; border-radius: 30px;
-            font-weight: 900; font-size: 24px; opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.2); border: 3px solid;
+            position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%) scale(0);
+            background: #fff; padding: 10px 20px; border-radius: 20px; font-weight: 900; font-size: 24px;
+            opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            border: 3px solid #333;
         }
         .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-
-        .menu-btn {
-            position: absolute; bottom: 30px; background: white; 
-            padding: 12px 20px; border-radius: 40px; 
-            box-shadow: 0 5px 15px rgba(0,0,0,0.15); pointer-events: auto;
-            display: flex; align-items: center; gap: 10px; font-weight: bold;
+        
+        .hud-btn {
+            position: absolute; bottom: 30px; background: white; padding: 12px 18px; border-radius: 30px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); pointer-events: auto; display: flex; align-items: center; gap: 8px; font-weight: bold;
         }
-        .menu-btn:active { transform: scale(0.95); }
-
-        #panel-inventory {
-            position: absolute; bottom: 0; left: 0; width: 100%;
-            background: #fff; border-radius: 25px 25px 0 0;
-            padding: 20px; box-sizing: border-box; transform: translateY(105%);
-            transition: transform 0.25s ease-out; pointer-events: auto;
-            box-shadow: 0 -10px 40px rgba(0,0,0,0.2); z-index: 300;
+        
+        #menu-pnl {
+            position: absolute; bottom: 0; left: 0; width: 100%; background: #fff;
+            border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box;
+            transform: translateY(110%); transition: transform 0.3s; pointer-events: auto; z-index: 300;
         }
-        #panel-inventory.active { transform: translateY(0); }
-
-        .item-card {
-            display: flex; align-items: center; padding: 12px;
-            border-bottom: 1px solid #eee;
-        }
-        .item-card:active { background-color: #f0f0f0; }
+        #menu-pnl.open { transform: translateY(0); }
+        .row { display: flex; padding: 10px; border-bottom: 1px solid #eee; align-items: center; }
 
         /* Effects */
-        .wobble { animation: wobble 0.6s ease-in-out; }
-        @keyframes wobble { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-15deg)} 75%{transform:rotate(15deg)} }
-        
-        .catch-flash { animation: flash 0.5s; }
-        @keyframes flash { 0% { transform: scale(0); opacity:1; } 50% { transform: scale(20); opacity: 0; background:white; } }
+        .sparkle { animation: flash 0.5s; }
+        @keyframes flash { 0% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.5); filter: brightness(5); } }
+        .shake { animation: shake 0.8s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } }
 
     </style>
-    <script>
-        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
-    </script>
 </head>
 <body>
 
-<div id="world-stage">
-    <!-- Scenery -->
-    <div class="scenery-hill" style="background:#81C784; left:-100px;"></div>
-    <div class="scenery-hill" style="background:#66BB6A; right:-80px; bottom:38%;"></div>
+<div id="world">
+    <div class="hill" style="background:#81C784; left:-80px;"></div>
+    <div class="hill" style="background:#66BB6A; right:-50px; bottom:38%;"></div>
 
-    <!-- Pokemon -->
-    <div id="pokemon-wrapper">
-        <div id="pokemon-info">Pikachu CP 1205</div>
-        <div style="position: relative;">
-            <img id="status-icon" src="" style="position:absolute; top:-50px; left:50%; transform:translateX(-50%); width:40px; display:none;" />
-            <img id="pokemon-sprite" src="" />
-            <div id="ring-system">
-                <div id="ring-outer" class="ring"></div>
-                <div id="ring-inner" class="ring"></div>
+    <div id="pokemon-wrap">
+        <div style="background:rgba(255,255,255,0.8); padding:5px 12px; border-radius:15px; font-weight:bold; margin-bottom:5px;">Pikachu CP 1850</div>
+        <div style="position:relative;">
+            <img id="poke-sprite" src="" />
+            <div id="ring-sys">
+                <div id="r-out" class="ring"></div>
+                <div id="r-in" class="ring"></div>
             </div>
         </div>
     </div>
 
-    <!-- The Ball -->
-    <div id="ball-wrapper">
-        <div id="pokeball-graphic"></div>
-        <div id="ball-shadow"></div>
+    <div id="ball-wrap">
+        <div id="ball-img"></div>
     </div>
 </div>
 
-<div id="ui-layer">
-    <div id="toast-msg" class="toast">Excellent!</div>
+<div id="ui">
+    <div id="toast" class="toast">Excellent!</div>
 
-    <div class="menu-btn" style="left: 20px;" onclick="gameUI.openMenu('berry')">
-        <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23D81B60'><path d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'/></svg>" width="24">
-        Berry
-    </div>
-    
-    <div class="menu-btn" style="right: 20px;" onclick="gameUI.openMenu('ball')">
-        <img id="hud-ball-icon" src="" width="24">
-        Balls
+    <div class="hud-btn" style="left:20px;" onclick="ui.menu('berry')">Berry</div>
+    <div class="hud-btn" style="right:20px;" onclick="ui.menu('ball')">
+        <img id="hud-icon" width="24" src=""> Balls
     </div>
 
-    <div id="panel-inventory">
-        <h3 id="panel-title" style="text-align:center; margin-top:0; color:#555;">ITEMS</h3>
-        <div id="panel-list" style="max-height: 300px; overflow-y:auto;"></div>
-        <button onclick="gameUI.closeMenu()" style="width:100%; padding:15px; margin-top:10px; background:#f5f5f5; border:none; border-radius:12px; font-weight:bold; font-size:16px;">Cancel</button>
+    <div id="menu-pnl">
+        <div style="text-align:center; font-weight:bold; color:#555; margin-bottom:10px;">ITEMS</div>
+        <div id="menu-list" style="max-height:300px; overflow-y:auto;"></div>
+        <button onclick="ui.close()" style="width:100%; padding:15px; background:#f0f0f0; border:none; margin-top:10px; border-radius:10px; font-weight:bold;">Cancel</button>
     </div>
 </div>
 
 <script>
-    // --- Asset Config ---
-    const URLS = {
+    const ASSETS = {
         poke: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/",
         item: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"
     };
 
-    const DB = {
-        inventory: {
-            'Poke Ball': { type:'ball', img:'poke-ball.png', qty: 50 },
-            'Great Ball': { type:'ball', img:'great-ball.png', qty: 20 },
-            'Ultra Ball': { type:'ball', img:'ultra-ball.png', qty: 10 },
-            'Master Ball': { type:'ball', img:'master-ball.png', qty: 1 },
-            'Razz Berry': { type:'berry', img:'razz-berry.png', qty: 10 },
-            'Nanab Berry': { type:'berry', img:'nanab-berry.png', qty: 10 },
-            'Pinap Berry': { type:'berry', img:'pinap-berry.png', qty: 10 }
+    const DATA = {
+        inv: {
+            'Poke Ball': { t:'ball', img:'poke-ball.png', qty:50 },
+            'Great Ball': { t:'ball', img:'great-ball.png', qty:20 },
+            'Ultra Ball': { t:'ball', img:'ultra-ball.png', qty:10 },
+            'Master Ball': { t:'ball', img:'master-ball.png', qty:1 },
+            'Razz Berry': { t:'berry', img:'razz-berry.png', qty:5 }
         },
-        mons: [
-            {id:25, name:"Pikachu"}, {id:133, name:"Eevee"}, {id:1, name:"Bulbasaur"},
-            {id:4, name:"Charmander"}, {id:7, name:"Squirtle"}, {id:150, name:"Mewtwo"},
-            {id:584, name:"Vanillish"}
-        ]
+        mon: [ {id:25, n:'Pikachu'}, {id:133, n:'Eevee'}, {id:1, n:'Bulbasaur'}, {id:6, n:'Charizard'} ]
     };
 
-    /* ================= ENGINE ================= */
-    const app = {
-        state: {
-            mon: null,
-            ball: 'Poke Ball',
-            berry: null,
-            mode: 'idle', // idle, hold, fly, catch
-            spin: 0 // Current angular momentum
-        },
+    // --- PHYSICS VARS ---
+    const STATE = {
+        mode: 'idle', // idle, hold, fly, catch
+        ball: 'Poke Ball',
+        berry: null,
+        
+        // Physics
+        pos: { x:0, y:0, z:0 },
+        vel: { x:0, y:0, z:0 },
+        spin: 0, // Angular velocity for curve
+        rot: 0, // Visual rotation angle
+    };
 
+    const INPUT = {
+        active: false,
+        hist: [],
+        last: { x:0, y:0, t:0 }
+    };
+
+    const LOGIC = {
         init: () => {
-            gameUI.updateHUD();
-            logic.spawn();
+            ui.hud();
+            LOGIC.spawn();
             
-            // Full Screen Touch Surface
-            const stage = document.body;
-            stage.addEventListener('touchstart', input.start, {passive: false});
-            stage.addEventListener('touchmove', input.move, {passive: false});
-            stage.addEventListener('touchend', input.end, {passive: false});
+            // Listeners
+            const s = document.body;
+            s.addEventListener('touchstart', LOGIC.start, {passive:false});
+            s.addEventListener('touchmove', LOGIC.move, {passive:false});
+            s.addEventListener('touchend', LOGIC.end, {passive:false});
             
             // Mouse
-            stage.addEventListener('mousedown', input.start);
-            window.addEventListener('mousemove', input.move);
-            window.addEventListener('mouseup', input.end);
-            
-            loop.start();
-        }
-    };
+            s.addEventListener('mousedown', LOGIC.start);
+            window.addEventListener('mousemove', LOGIC.move);
+            window.addEventListener('mouseup', LOGIC.end);
 
-    /* ================= PHYSICS LOOP ================= */
-    const loop = {
-        active: true,
-        ball: { x:0, y:0, z:0, vx:0, vy:0, vz:0, rot:0 },
-        
-        start: () => {
-            requestAnimationFrame(loop.tick);
+            requestAnimationFrame(LOGIC.loop);
         },
 
-        tick: () => {
-            if (app.state.mode === 'fly') {
-                // 1. Update Positions
-                loop.ball.x += loop.ball.vx;
-                loop.ball.y += loop.ball.vy;
-                loop.ball.z += loop.ball.vz;
+        spawn: () => {
+            const m = DATA.mon[Math.floor(Math.random()*DATA.mon.length)];
+            document.getElementById('poke-sprite').src = ASSETS.poke + m.id + '.png';
+            document.getElementById('poke-sprite').style.opacity = 1;
+            document.getElementById('poke-sprite').style.transform = 'scale(1)';
+            document.getElementById('ring-sys').style.display = 'flex';
+            document.getElementById('r-in').style.borderColor = Math.random()>0.5 ? 'red' : 'orange';
+            LOGIC.reset();
+        },
 
-                // 2. Apply Forces
-                // Gravity
-                loop.ball.vy += 0.8; 
-                
-                // Curve (Magnus Effect)
-                // If spin is positive (clockwise), ball curves Right
-                // Curve strength depends on forward velocity (vz)
-                const curveForce = app.state.spin * 0.05; 
-                loop.ball.vx += curveForce;
+        reset: () => {
+            STATE.mode = 'idle';
+            STATE.spin = 0;
+            STATE.rot = 0;
+            const b = document.getElementById('ball-wrap');
+            b.style.transition = 'all 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
+            b.style.left = '50%';
+            b.style.top = 'auto'; 
+            b.style.bottom = '15%';
+            b.style.transform = 'translate3d(-50%, 0, 0) scale(1)';
+            document.getElementById('ball-img').style.transform = 'rotate(0deg)';
+            b.style.display = 'block';
+        },
 
-                // Air Resistance
-                loop.ball.vz *= 0.99;
-
-                // 3. Render
-                render.flying();
-
-                // 4. Collision Logic
-                // Pokemon plane is at Z = 100 roughly
-                const distZ = 80; // Target Depth
-                if (loop.ball.z > distZ) {
-                    logic.checkHit();
-                }
-
-                // 5. Miss Logic
-                if (loop.ball.y > window.innerHeight + 100 || loop.ball.y < -500) {
-                    logic.miss();
-                }
-            } else if (app.state.mode === 'hold') {
-                // In hold mode, we just spin visually based on input
-                app.state.spin *= 0.9; // Decay spin if not moving
-                loop.ball.rot += app.state.spin;
-                render.holding();
-            }
-            
-            if (loop.active) requestAnimationFrame(loop.tick);
-        }
-    };
-
-    /* ================= INPUT HANDLING ================= */
-    const input = {
-        active: false,
-        history: [],
-        
+        // --- INPUT ---
         start: (e) => {
-            if (app.state.mode !== 'idle') return;
+            if (STATE.mode !== 'idle') return;
             const p = e.touches ? e.touches[0] : e;
-            const rect = document.body.getBoundingClientRect();
+            const h = window.innerHeight;
             
-            // Grabbable Area: Bottom 60%
-            if (p.clientY < rect.height * 0.4) return;
-
+            // Allow grab bottom 60%
+            if (p.clientY < h * 0.4) return;
+            
             e.preventDefault();
-            input.active = true;
-            app.state.mode = 'hold';
-            input.history = [];
+            INPUT.active = true;
+            STATE.mode = 'hold';
+            INPUT.hist = [];
             
-            // Visual Snap
-            const ballEl = document.getElementById('ball-wrapper');
-            ballEl.style.transition = 'transform 0.1s cubic-bezier(0.1, 0.7, 1.0, 0.1)'; // Smooth grab
-            ballEl.style.transform = `translate3d(-50%, -50%, 0) scale(1.1)`; 
+            // Visual Snap to finger
+            const b = document.getElementById('ball-wrap');
+            b.style.transition = 'none'; // Instant follow
+            b.style.transform = 'translate3d(-50%, -50%, 0) scale(1.1)'; // Held scale
             
-            input.update(p.clientX, p.clientY);
+            LOGIC.track(p.clientX, p.clientY);
         },
 
         move: (e) => {
-            if (!input.active) return;
+            if (!INPUT.active) return;
             e.preventDefault();
             const p = e.touches ? e.touches[0] : e;
-            input.update(p.clientX, p.clientY);
+            LOGIC.track(p.clientX, p.clientY);
         },
 
-        update: (x, y) => {
+        track: (x, y) => {
             const now = Date.now();
-            input.history.push({x, y, t:now});
-            if (input.history.length > 8) input.history.shift();
+            INPUT.hist.push({x, y, t:now});
+            if (INPUT.hist.length > 8) INPUT.hist.shift(); // Keep last 8 frames
 
-            // Calculate Spin
-            if (input.history.length > 2) {
-                const last = input.history[input.history.length-2];
-                const dx = x - last.x;
-                const dy = y - last.y;
-                // Simple spin approximation based on lateral movement
-                app.state.spin = dx * 1.5; 
+            // Update Ball Position immediately
+            STATE.pos.x = x;
+            STATE.pos.y = y;
+
+            // SPIN CALCULATION
+            if (INPUT.hist.length > 2) {
+                const prev = INPUT.hist[INPUT.hist.length-2];
+                const dx = x - prev.x;
+                const dy = y - prev.y;
+                
+                // Rotational movement detection (Cross Product-ish)
+                // This detects if we are moving in a circle
+                const cx = window.innerWidth / 2;
+                const cy = window.innerHeight * 0.8; // Rough center of spin area
+                
+                // Simple spin accumulation based on lateral velocity
+                STATE.spin = dx * 1.5; 
+                STATE.rot += STATE.spin;
             }
-
-            loop.ball.x = x;
-            loop.ball.y = y;
         },
 
         end: (e) => {
-            if (!input.active) return;
-            input.active = false;
+            if (!INPUT.active) return;
+            INPUT.active = false;
             
-            const hist = input.history;
-            if (hist.length < 3) { logic.resetBall(); return; }
+            const hist = INPUT.hist;
+            if (hist.length < 3) { LOGIC.reset(); return; }
             
             const start = hist[0];
             const end = hist[hist.length-1];
             const dt = end.t - start.t;
+            
+            // Anti-Hold
+            if (Date.now() - end.t > 150) { LOGIC.reset(); return; }
 
-            // Anti-Cheat: Timing
-            if (Date.now() - end.t > 150) { logic.resetBall(); return; }
-
-            // Physics Launch
-            // Pixels per ms
             const vx = (end.x - start.x) / dt;
             const vy = (end.y - start.y) / dt;
-            
+
             // Throw Threshold
-            if (vy > -0.6) { // Not fast enough upward
-                logic.dropBall();
-                return;
-            }
+            if (vy > -0.5) { LOGIC.reset(); return; }
 
-            // Consume Ball
-            if (DB.inventory[app.state.ball].qty <= 0) {
-                gameUI.toast("Out of balls!", "red");
-                logic.resetBall();
-                return;
-            }
-            DB.inventory[app.state.ball].qty--;
-            gameUI.updateHUD();
-
-            // Launch Config
-            app.state.mode = 'fly';
-            loop.ball.vx = vx * 18; // Horizontal sensitivity
-            loop.ball.vy = vy * 18; // Vertical Power
+            // Launch
+            if (DATA.inv[STATE.ball].qty > 0) DATA.inv[STATE.ball].qty--;
+            ui.hud();
             
-            // Z-Velocity (Depth Power) is derived from Y-Velocity (Forward throw)
-            // Harder throw = faster depth travel
-            loop.ball.vz = Math.abs(vy) * 25; 
+            STATE.mode = 'fly';
+            STATE.vel.x = vx * 18;
+            STATE.vel.y = vy * 18; 
+            STATE.vel.z = Math.abs(vy) * 22; // Depth speed based on throw power
             
-            loop.ball.z = 0;
+            // Curve Logic
+            STATE.spin = (STATE.spin || 0) * 0.5; // Carry over spin momentum
+            
+            // Reset Z pos for flight
+            STATE.pos.z = 0;
             // X/Y start from release point
-            loop.ball.x = end.x;
-            loop.ball.y = end.y;
-        }
-    };
-
-    /* ================= RENDERING ================= */
-    const render = {
-        holding: () => {
-            const ball = document.getElementById('ball-wrapper');
-            const graphic = document.getElementById('pokeball-graphic');
-            
-            // Follow finger exactly
-            ball.style.left = loop.ball.x + 'px';
-            ball.style.top = loop.ball.y + 'px';
-            
-            // Spin graphic
-            graphic.style.transform = `rotate(${loop.ball.rot}deg)`;
+            STATE.pos.x = end.x;
+            STATE.pos.y = end.y;
         },
 
-        flying: () => {
-            const ball = document.getElementById('ball-wrapper');
-            const graphic = document.getElementById('pokeball-graphic');
-            
-            // 3D Projection Approximation
-            // Standard perspective formula: scale = d / (d + z)
-            const d = 600; // Match CSS perspective
-            const scale = d / (d + loop.ball.z);
-            
-            // Adjust loop.ball.rot for spin visual
-            loop.ball.rot += app.state.spin * 2;
+        // --- PHYSICS LOOP ---
+        loop: () => {
+            const b = document.getElementById('ball-wrap');
+            const g = document.getElementById('ball-img');
 
-            ball.style.left = loop.ball.x + 'px';
-            ball.style.top = loop.ball.y + 'px';
-            // Scale gets smaller as Z increases
-            ball.style.transform = `translate3d(-50%, -50%, 0) scale(${scale})`;
-            graphic.style.transform = `rotate(${loop.ball.rot}deg)`;
-            
-            // Shadow Logic
-            const shadow = document.getElementById('ball-shadow');
-            shadow.style.opacity = Math.max(0, 1 - (loop.ball.y / window.innerHeight));
-        }
-    };
+            if (STATE.mode === 'hold') {
+                // Follow Finger
+                b.style.left = STATE.pos.x + 'px';
+                b.style.top = STATE.pos.y + 'px';
+                g.style.transform = `rotate(${STATE.rot}deg)`;
+            }
+            else if (STATE.mode === 'fly') {
+                // Physics Steps
+                STATE.pos.x += STATE.vel.x;
+                STATE.pos.y += STATE.vel.y;
+                STATE.pos.z += STATE.vel.z;
 
-    /* ================= GAME LOGIC ================= */
-    const logic = {
-        spawn: () => {
-            const mon = DB.mons[Math.floor(Math.random()*DB.mons.length)];
-            const cp = Math.floor(Math.random()*2000)+100;
-            app.state.mon = { ...mon, cp };
-            app.state.berry = null;
+                // Gravity
+                STATE.vel.vy += 0.7;
+                
+                // Magnus Effect (Curve)
+                STATE.vel.x += STATE.spin * 0.1;
+                
+                // Drag
+                STATE.vel.z *= 0.98;
 
-            // DOM
-            document.getElementById('pokemon-sprite').src = URLS.poke + mon.id + '.png';
-            document.getElementById('pokemon-sprite').style.opacity = 1;
-            document.getElementById('pokemon-sprite').style.transform = 'scale(1)';
-            document.getElementById('pokemon-info').innerText = `${mon.name} CP ${cp}`;
-            document.getElementById('status-icon').style.display = 'none';
-            document.getElementById('ring-system').style.display = 'flex';
-            
-            // Random Ring Color
-            const r = document.getElementById('ring-inner');
-            r.style.borderColor = Math.random() > 0.5 ? '#F44336' : '#FF9800';
-            
-            logic.resetBall();
+                // Visual Render (Perspective)
+                const d = 700;
+                const scale = d / (d + STATE.pos.z);
+                
+                // Rotation visualization
+                STATE.rot += STATE.spin * 2;
+
+                b.style.left = STATE.pos.x + 'px';
+                b.style.top = STATE.pos.y + 'px';
+                b.style.transform = `translate3d(-50%, -50%, 0) scale(${scale})`;
+                g.style.transform = `rotate(${STATE.rot}deg)`;
+
+                // HIT Check (Depth ~100)
+                if (STATE.pos.z > 90) {
+                    // Check Screen Coords against Target
+                    const t = document.getElementById('pokemon-wrap').getBoundingClientRect();
+                    // Ball center
+                    const bx = STATE.pos.x;
+                    const by = STATE.pos.y;
+                    
+                    if (bx > t.left && bx < t.right && by > t.top && by < t.bottom) {
+                        LOGIC.hit();
+                    } else if (STATE.pos.z > 200) {
+                        // Missed depth
+                        LOGIC.miss();
+                    }
+                }
+                
+                // Floor/Sky Check
+                if (STATE.pos.y > window.innerHeight + 50) LOGIC.miss();
+            }
+
+            requestAnimationFrame(LOGIC.loop);
         },
 
-        resetBall: () => {
-            app.state.mode = 'idle';
-            app.state.spin = 0;
-            loop.ball.rot = 0;
-            const b = document.getElementById('ball-wrapper');
-            b.style.transition = 'all 0.5s cubic-bezier(0.19, 1, 0.22, 1)';
-            b.style.left = '50%';
-            b.style.top = 'auto';
-            b.style.bottom = '15%';
-            b.style.transform = 'translate3d(-50%, 0, 0) scale(1)';
-            document.getElementById('pokeball-graphic').style.transform = 'rotate(0deg)';
-            b.style.display = 'block';
-        },
+        hit: () => {
+            STATE.mode = 'catch';
+            
+            // Calculate Bonus
+            const inner = document.getElementById('r-in').offsetWidth;
+            const outer = document.getElementById('r-out').offsetWidth;
+            const ratio = inner/outer;
+            
+            let txt="Nice!"; let col="#fff";
+            if (ratio < 0.2) { txt="Excellent!"; col="#FFD700"; }
+            else if (ratio < 0.5) { txt="Great!"; col="red"; }
+            else if (ratio > 0.9) txt=""; 
+            
+            if(txt) ui.toast(txt, col);
 
-        dropBall: () => {
-            const b = document.getElementById('ball-wrapper');
-            b.style.transition = 'top 0.4s ease-in';
-            b.style.top = '100%';
-            gameUI.toast("Throw!", "#555");
-            setTimeout(logic.resetBall, 450);
+            // Hide Rings
+            document.getElementById('ring-sys').style.display = 'none';
+
+            // Snap Animation
+            const b = document.getElementById('ball-wrap');
+            const t = document.getElementById('pokemon-wrap').getBoundingClientRect();
+            b.style.transition = 'all 0.1s';
+            b.style.left = (t.left + t.width/2) + 'px';
+            b.style.top = (t.top + t.height/2) + 'px';
+            b.style.transform = 'translate(-50%, -50%) scale(0.6)';
+
+            // Suck
+            const s = document.getElementById('poke-sprite');
+            s.style.transition = 'all 0.4s';
+            s.style.transform = 'scale(0) rotate(180deg)';
+            s.style.opacity = 0;
+
+            // Drop & Shake
+            setTimeout(() => {
+                b.style.transition = 'top 0.4s ease-out';
+                b.style.top = (t.bottom + 60) + 'px';
+                setTimeout(() => LOGIC.shake(0), 500);
+            }, 400);
         },
 
         miss: () => {
-            app.state.mode = 'idle'; // Stop physics
-            gameUI.toast("Miss!", "#555");
-            setTimeout(logic.resetBall, 500);
+            STATE.mode = 'idle';
+            ui.toast("Miss!", "#aaa");
+            setTimeout(LOGIC.reset, 500);
         },
 
-        checkHit: () => {
-            app.state.mode = 'catch'; // Stop physics
-            
-            // Hitbox Logic
-            const mon = document.getElementById('pokemon-wrapper').getBoundingClientRect();
-            const bx = loop.ball.x;
-            const by = loop.ball.y;
-            
-            // Check if ball is within pokemon bounds
-            if (bx > mon.left && bx < mon.right && by > mon.top && by < mon.bottom) {
-                // Determine Accuracy
-                const inner = document.getElementById('ring-inner').offsetWidth;
-                const outer = document.getElementById('ring-outer').offsetWidth;
-                const ratio = inner/outer;
-                
-                let bonus = 1;
-                let txt = "Nice!";
-                let col = "#fff";
-                
-                if (ratio < 0.2) { txt = "Excellent!"; bonus = 1.8; col = "#FFD700"; }
-                else if (ratio < 0.5) { txt = "Great!"; bonus = 1.5; col = "#E53935"; }
-                else if (ratio > 0.9) { txt = ""; bonus = 1; } // Missed ring
-                
-                if (txt) gameUI.toast(txt, col, "#333");
-
-                // Animate Hit
-                document.getElementById('ring-system').style.display = 'none';
-                const ball = document.getElementById('ball-wrapper');
-                
-                // Snap ball to center of mon
-                ball.style.transition = 'all 0.1s';
-                ball.style.left = (mon.left + mon.width/2) + 'px';
-                ball.style.top = (mon.top + mon.height/2) + 'px';
-                ball.style.transform = 'translate(-50%,-50%) scale(0.6)';
-                
-                // Suck Mon
-                const sprite = document.getElementById('pokemon-sprite');
-                sprite.style.transition = 'all 0.4s ease-in';
-                sprite.style.transform = 'scale(0) rotate(180deg)';
-                sprite.style.opacity = 0;
-                
-                // Shake Sequence
+        shake: (count) => {
+            if (count >= 3) {
+                ui.toast("Gotcha!", "#4CAF50");
+                document.getElementById('ball-wrap').classList.add('sparkle');
                 setTimeout(() => {
-                    ball.style.transition = 'top 0.5s ease-out';
-                    ball.style.top = (mon.bottom + 50) + 'px'; // Drop to ground
-                    setTimeout(() => logic.shake(bonus), 600);
-                }, 400);
-
-            } else {
-                logic.miss();
+                    document.getElementById('ball-wrap').classList.remove('sparkle');
+                    LOGIC.spawn();
+                }, 2000);
+                return;
             }
-        },
 
-        shake: (bonus) => {
-            const ball = document.getElementById('pokeball-graphic');
-            let shakes = 0;
-            const max = 3;
-            let catchRate = 0.4 * bonus;
-            if (app.state.berry) catchRate += 0.2;
-            if (app.state.ball === 'Master Ball') catchRate = 100;
-
-            const doShake = () => {
-                if (shakes >= max) {
-                    logic.success();
-                    return;
-                }
-                
-                if (Math.random() < catchRate) {
-                    shakes++;
-                    ball.style.animation = 'none';
-                    ball.offsetHeight;
-                    ball.parentElement.classList.add('wobble');
-                    setTimeout(() => {
-                         ball.parentElement.classList.remove('wobble');
-                         doShake();
-                    }, 1200);
-                } else {
-                    logic.flee();
-                }
-            };
-            doShake();
-        },
-
-        flee: () => {
-            gameUI.toast("Broke free!", "white", "black");
-            document.getElementById('ball-wrapper').style.display = 'none';
-            
-            const sprite = document.getElementById('pokemon-sprite');
-            sprite.style.transform = 'scale(1)';
-            sprite.style.opacity = 1;
-            document.getElementById('ring-system').style.display = 'flex';
-            
-            // Clear berry
-            app.state.berry = null;
-            document.getElementById('status-icon').style.display = 'none';
-            
-            setTimeout(logic.resetBall, 1000);
-        },
-
-        success: () => {
-            gameUI.toast(`Gotcha! ${app.state.mon.name} caught!`, "#4CAF50", "white");
-            document.getElementById('ball-wrapper').classList.add('catch-flash');
-            setTimeout(() => {
-                document.getElementById('ball-wrapper').classList.remove('catch-flash');
-                logic.spawn();
-            }, 2500);
+            const b = document.getElementById('ball-img');
+            // Mock Catch Rate (50%)
+            if (Math.random() > 0.5) {
+                b.style.animation = 'none';
+                b.offsetHeight;
+                b.parentElement.style.animation = 'shake 0.8s';
+                setTimeout(() => LOGIC.shake(count+1), 1000);
+            } else {
+                ui.toast("Escaped!");
+                document.getElementById('ball-wrap').style.display = 'none';
+                const s = document.getElementById('poke-sprite');
+                s.style.transform = 'scale(1)'; s.style.opacity = 1;
+                document.getElementById('ring-sys').style.display = 'flex';
+                setTimeout(LOGIC.reset, 1000);
+            }
         }
     };
 
-    /* ================= UI CONTROLLER ================= */
-    const gameUI = {
-        updateHUD: () => {
-            const b = DB.inventory[app.state.ball];
-            document.getElementById('hud-ball-icon').src = URLS.item + b.img;
-            document.getElementById('pokeball-graphic').style.backgroundImage = `url('${URLS.item + b.img}')`;
+    const ui = {
+        hud: () => {
+            const i = DATA.inv[STATE.ball];
+            document.getElementById('hud-icon').src = ASSETS.item + i.img;
+            document.getElementById('ball-img').style.backgroundImage = `url('${ASSETS.item + i.img}')`;
         },
-
-        toast: (msg, bg, col) => {
-            const t = document.getElementById('toast-msg');
-            t.innerText = msg;
-            t.style.borderColor = col || bg;
-            t.style.color = col || bg;
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 2000);
-        },
-
-        openMenu: (type) => {
-            if (app.state.mode !== 'idle') return;
-            const list = document.getElementById('panel-list');
+        menu: (type) => {
+            if (STATE.mode !== 'idle') return;
+            const list = document.getElementById('menu-list');
             list.innerHTML = '';
-            document.getElementById('panel-title').innerText = "SELECT " + type.toUpperCase();
-            
-            Object.keys(DB.inventory).forEach(key => {
-                const item = DB.inventory[key];
-                if (item.type !== type) return;
-                
-                const div = document.createElement('div');
-                div.className = 'item-card';
-                div.onclick = () => gameUI.selectItem(key);
-                div.innerHTML = `
-                    <img src="${URLS.item + item.img}" width="40" style="margin-right:15px">
-                    <div style="flex:1">
-                        <strong>${key}</strong>
-                        <div style="font-size:12px; color:#888">x${item.qty}</div>
-                    </div>
-                `;
-                if (item.qty < 1) div.style.opacity = 0.4;
-                list.appendChild(div);
-            });
-            
-            document.getElementById('panel-inventory').classList.add('active');
-        },
-
-        closeMenu: () => {
-            document.getElementById('panel-inventory').classList.remove('active');
-        },
-
-        selectItem: (key) => {
-            const item = DB.inventory[key];
-            if (item.qty <= 0) return;
-            
-            if (item.type === 'ball') {
-                app.state.ball = key;
-                gameUI.updateHUD();
-            } else {
-                if (app.state.berry) { gameUI.toast("Already fed!"); return; }
-                DB.inventory[key].qty--;
-                app.state.berry = key;
-                const ico = document.getElementById('status-icon');
-                ico.src = URLS.item + item.img;
-                ico.style.display = 'block';
-                gameUI.toast(key + " used!");
+            for (let k in DATA.inv) {
+                const i = DATA.inv[k];
+                if (i.t !== type) continue;
+                const r = document.createElement('div');
+                r.className = 'row';
+                r.onclick = () => {
+                    if (type === 'ball') STATE.ball = k;
+                    else if (type === 'berry') STATE.berry = k;
+                    ui.hud(); ui.close();
+                };
+                r.innerHTML = `<img src="${ASSETS.item+i.img}" width="40" style="margin-right:10px"> <b>${k}</b> x${i.qty}`;
+                list.appendChild(r);
             }
-            gameUI.closeMenu();
+            document.getElementById('menu-pnl').classList.add('open');
+        },
+        close: () => document.getElementById('menu-pnl').classList.remove('open'),
+        toast: (msg, col) => {
+            const t = document.getElementById('toast');
+            t.innerText = msg;
+            t.style.color = col;
+            t.style.borderColor = col;
+            t.classList.add('show');
+            setTimeout(() => t.classList.remove('show'), 1500);
         }
     };
 
-    window.onload = app.init;
+    window.onload = LOGIC.init;
 </script>
 </body>
 </html>
