@@ -3,483 +3,620 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>PokeCatch Pro - Spin Update</title>
+    <title>Pokémon GO Catch Sim</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#87CEEB">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#000000">
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png">
 
     <style>
-        /* Base Reset */
+        /* --- RESET & LAYOUT --- */
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background-color: #87CEEB;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            overflow: hidden; background: #000;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             touch-action: none; user-select: none; -webkit-user-select: none;
         }
 
-        #world {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            perspective: 700px; /* Depth perception */
-            background: linear-gradient(to bottom, #4FC3F7 0%, #E1F5FE 60%, #81C784 60%, #43A047 100%);
+        #game-stage {
+            position: relative; width: 100%; height: 100%;
+            overflow: hidden;
+            /* Authentic Background Look */
+            background: url('https://images.unsplash.com/photo-1596323672439-e5c94294b22c?q=80&w=1000&auto=format&fit=crop') no-repeat center center;
+            background-size: cover;
+            perspective: 800px; /* 3D Depth */
         }
 
-        /* Scenery */
-        .hill { position: absolute; bottom: 40%; width: 300px; height: 150px; border-radius: 50% 50% 0 0; z-index: 1; pointer-events: none; }
-        
-        /* Target (Pokemon) */
-        #pokemon-wrap {
-            position: absolute; top: 45%; left: 50%;
-            transform: translate3d(-50%, -50%, -100px);
-            width: 250px; height: 250px; z-index: 10;
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-end;
-            pointer-events: none;
+        /* --- POKEMON TARGET --- */
+        #pokemon-container {
+            position: absolute;
+            top: 48%; left: 50%;
+            transform: translate3d(-50%, -50%, -300px); /* Pushed back in 3D space */
+            width: 300px; height: 300px;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 10; pointer-events: none;
+            will-change: transform;
         }
-        #poke-sprite {
-            width: 180px; height: 180px; object-fit: contain;
-            filter: drop-shadow(0 15px 10px rgba(0,0,0,0.2));
-            animation: breathe 3s infinite ease-in-out;
-            transition: opacity 0.2s, transform 0.2s;
-        }
-        @keyframes breathe { 50% { transform: scale(1.05); } }
 
-        /* Rings */
-        #ring-sys {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 140px; height: 140px; display: flex; justify-content: center; align-items: center;
+        #pokemon-sprite {
+            width: 220px; height: 220px;
+            object-fit: contain;
+            filter: drop-shadow(0 20px 20px rgba(0,0,0,0.4));
+            animation: idleHover 3s infinite ease-in-out;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        @keyframes idleHover { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+
+        #cp-tag {
+            background: rgba(255, 255, 255, 0.9);
+            padding: 4px 12px; border-radius: 12px;
+            font-weight: 800; color: #444; font-size: 14px;
+            margin-bottom: 15px; text-transform: uppercase;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        /* --- TARGET RINGS --- */
+        #ring-container {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -30%); /* Adjusted to center on body */
+            width: 150px; height: 150px;
+            display: flex; justify-content: center; align-items: center;
         }
         .ring { position: absolute; border-radius: 50%; box-sizing: border-box; }
-        #r-out { width: 100%; height: 100%; border: 4px solid rgba(255,255,255,0.7); }
-        #r-in { width: 100%; height: 100%; border: 4px solid; animation: shrink 1.8s linear infinite; }
-        @keyframes shrink { 0% { width: 100%; height: 100%; opacity: 0; } 10% { opacity: 1; } 100% { width: 0%; height: 0%; } }
-
-        /* Ball */
-        #ball-wrap {
-            position: absolute; width: 70px; height: 70px;
-            left: 50%; bottom: 15%; 
-            transform: translate3d(-50%, 0, 0); /* Centered X */
-            z-index: 100; pointer-events: none; will-change: transform, left, top;
+        #ring-outer { width: 100%; height: 100%; border: 3px solid rgba(255,255,255,0.7); }
+        #ring-target { 
+            width: 100%; height: 100%; 
+            border: 3px solid #ff0000; 
+            animation: shrinkRing 1.8s linear infinite; 
         }
-        #ball-img {
+        @keyframes shrinkRing { 0% { transform: scale(1); opacity:1; } 100% { transform: scale(0); opacity:1; } }
+
+        /* --- POKEBALL --- */
+        #ball-container {
+            position: absolute;
+            width: 90px; height: 90px; /* Authentic Large Size */
+            left: 50%; bottom: 10%; /* Authentic Position */
+            transform: translate3d(-50%, 0, 0);
+            z-index: 100;
+            will-change: transform, top, left;
+        }
+
+        #ball-sprite {
             width: 100%; height: 100%;
             background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png');
             background-size: contain; background-repeat: no-repeat;
             border-radius: 50%;
-        }
-
-        /* UI */
-        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 200; }
-        .toast {
-            position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%) scale(0);
-            background: #fff; padding: 10px 20px; border-radius: 20px; font-weight: 900; font-size: 24px;
-            opacity: 0; transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 3px solid #333;
-        }
-        .toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-        
-        .hud-btn {
-            position: absolute; bottom: 30px; background: white; padding: 12px 18px; border-radius: 30px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2); pointer-events: auto; display: flex; align-items: center; gap: 8px; font-weight: bold;
+            /* Rotation applied here via JS */
         }
         
-        #menu-pnl {
-            position: absolute; bottom: 0; left: 0; width: 100%; background: #fff;
-            border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box;
-            transform: translateY(110%); transition: transform 0.3s; pointer-events: auto; z-index: 300;
+        /* Sparkles for Curveball */
+        .sparkle {
+            position: absolute; width: 8px; height: 8px;
+            background: gold; border-radius: 50%;
+            pointer-events: none; opacity: 0;
+            box-shadow: 0 0 5px gold;
         }
-        #menu-pnl.open { transform: translateY(0); }
-        .row { display: flex; padding: 10px; border-bottom: 1px solid #eee; align-items: center; }
 
-        /* Effects */
-        .sparkle { animation: flash 0.5s; }
-        @keyframes flash { 0% { transform: scale(1); filter: brightness(1); } 50% { transform: scale(1.5); filter: brightness(5); } }
-        .shake { animation: shake 0.8s cubic-bezier(.36,.07,.19,.97) both; }
-        @keyframes shake { 10%, 90% { transform: translate3d(-2px, 0, 0); } 20%, 80% { transform: translate3d(2px, 0, 0); } }
+        /* --- UI OVERLAY --- */
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 200;
+        }
+
+        .ui-btn {
+            position: absolute; bottom: 30px;
+            width: 50px; height: 50px;
+            background: rgba(255,255,255,0.9);
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            pointer-events: auto; cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .ui-btn:active { transform: scale(0.9); }
+        
+        #btn-berry { left: 20px; }
+        #btn-ball { right: 20px; }
+
+        /* Toast Messages */
+        #toast {
+            position: absolute; top: 35%; left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            font-family: 'Arial Black', sans-serif;
+            font-size: 32px; color: white;
+            text-shadow: 0 0 5px black, 2px 2px 0 black;
+            opacity: 0; pointer-events: none;
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #toast.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+        /* Inventory Menus */
+        .drawer {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: #fff; border-radius: 20px 20px 0 0;
+            padding: 20px; box-sizing: border-box;
+            transform: translateY(110%); transition: transform 0.3s ease-out;
+            pointer-events: auto; z-index: 300;
+        }
+        .drawer.open { transform: translateY(0); }
+        .drawer-item {
+            display: flex; align-items: center; padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        #active-berry {
+            position: absolute; top: 20%; right: 20px; width: 40px; display: none;
+        }
+
+        /* Animations */
+        .shake { animation: shake 0.6s cubic-bezier(.36,.07,.19,.97) both; }
+        @keyframes shake { 20% {transform: translateX(-5px) rotate(-10deg)} 40% {transform: translateX(5px) rotate(10deg)} 60% {transform: translateX(-5px) rotate(-10deg)} 80% {transform: translateX(5px) rotate(10deg)} }
+        
+        .catch-flash { animation: catchFlash 0.5s; }
+        @keyframes catchFlash { 0% {filter: brightness(1);} 50% {filter: brightness(3) sepia(1) hue-rotate(-50deg);} }
 
     </style>
+    <script>
+        if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(console.error);
+    </script>
 </head>
 <body>
 
-<div id="world">
-    <div class="hill" style="background:#81C784; left:-80px;"></div>
-    <div class="hill" style="background:#66BB6A; right:-50px; bottom:38%;"></div>
-
-    <div id="pokemon-wrap">
-        <div style="background:rgba(255,255,255,0.8); padding:5px 12px; border-radius:15px; font-weight:bold; margin-bottom:5px;">Pikachu CP 1850</div>
-        <div style="position:relative;">
-            <img id="poke-sprite" src="" />
-            <div id="ring-sys">
-                <div id="r-out" class="ring"></div>
-                <div id="r-in" class="ring"></div>
-            </div>
+<div id="game-stage">
+    <!-- POKEMON -->
+    <div id="pokemon-container">
+        <div id="cp-tag">Pikachu CP 842</div>
+        <img id="active-berry" src="" />
+        <img id="pokemon-sprite" src="" />
+        <div id="ring-container">
+            <div id="ring-outer" class="ring"></div>
+            <div id="ring-target" class="ring"></div>
         </div>
     </div>
 
-    <div id="ball-wrap">
-        <div id="ball-img"></div>
+    <!-- BALL -->
+    <div id="ball-container">
+        <div id="ball-sprite"></div>
     </div>
 </div>
 
-<div id="ui">
-    <div id="toast" class="toast">Excellent!</div>
+<div id="ui-layer">
+    <div id="toast">Excellent!</div>
 
-    <div class="hud-btn" style="left:20px;" onclick="ui.menu('berry')">Berry</div>
-    <div class="hud-btn" style="right:20px;" onclick="ui.menu('ball')">
-        <img id="hud-icon" width="24" src=""> Balls
+    <!-- UI Buttons -->
+    <div id="btn-berry" class="ui-btn" onclick="UI.open('berry')">
+        <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/razz-berry.png" width="30">
+    </div>
+    
+    <div id="btn-ball" class="ui-btn" onclick="UI.open('ball')">
+        <img id="current-ball-icon" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" width="30">
     </div>
 
-    <div id="menu-pnl">
-        <div style="text-align:center; font-weight:bold; color:#555; margin-bottom:10px;">ITEMS</div>
-        <div id="menu-list" style="max-height:300px; overflow-y:auto;"></div>
-        <button onclick="ui.close()" style="width:100%; padding:15px; background:#f0f0f0; border:none; margin-top:10px; border-radius:10px; font-weight:bold;">Cancel</button>
+    <!-- Menus -->
+    <div id="menu-drawer" class="drawer">
+        <h3 id="drawer-title" style="text-align:center; color:#555; margin-top:0;">ITEMS</h3>
+        <div id="drawer-list" style="max-height:60vh; overflow-y:auto;"></div>
+        <button onclick="UI.close()" style="width:100%; padding:15px; margin-top:10px; border:none; background:#eee; font-weight:bold; border-radius:10px;">Close</button>
     </div>
 </div>
 
 <script>
+    /* --- ASSETS & DATA --- */
     const ASSETS = {
         poke: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/",
         item: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"
     };
 
-    const DATA = {
-        inv: {
-            'Poke Ball': { t:'ball', img:'poke-ball.png', qty:50 },
-            'Great Ball': { t:'ball', img:'great-ball.png', qty:20 },
-            'Ultra Ball': { t:'ball', img:'ultra-ball.png', qty:10 },
-            'Master Ball': { t:'ball', img:'master-ball.png', qty:1 },
-            'Razz Berry': { t:'berry', img:'razz-berry.png', qty:5 }
+    const DB = {
+        balls: {
+            'Poke Ball': { img:'poke-ball.png', qty:50 },
+            'Great Ball': { img:'great-ball.png', qty:30 },
+            'Ultra Ball': { img:'ultra-ball.png', qty:15 },
+            'Master Ball': { img:'master-ball.png', qty:1 }
         },
-        mon: [ {id:25, n:'Pikachu'}, {id:133, n:'Eevee'}, {id:1, n:'Bulbasaur'}, {id:6, n:'Charizard'} ]
+        berries: {
+            'Razz Berry': { img:'razz-berry.png', qty:10 },
+            'Nanab Berry': { img:'nanab-berry.png', qty:10 },
+            'Pinap Berry': { img:'pinap-berry.png', qty:10 }
+        },
+        mons: [
+            {id:25, n:'Pikachu'}, {id:1, n:'Bulbasaur'}, {id:4, n:'Charmander'},
+            {id:7, n:'Squirtle'}, {id:133, n:'Eevee'}, {id:143, n:'Snorlax'},
+            {id:150, n:'Mewtwo'}, {id:94, n:'Gengar'}
+        ]
     };
 
-    // --- PHYSICS VARS ---
-    const STATE = {
-        mode: 'idle', // idle, hold, fly, catch
-        ball: 'Poke Ball',
-        berry: null,
-        
-        // Physics
-        pos: { x:0, y:0, z:0 },
-        vel: { x:0, y:0, z:0 },
-        spin: 0, // Angular velocity for curve
-        rot: 0, // Visual rotation angle
-    };
+    /* --- GAME ENGINE --- */
+    const Game = {
+        state: {
+            mode: 'idle', // idle, hold, fly, catch
+            ball: 'Poke Ball',
+            berry: null,
+            spin: 0,
+            mon: null,
+            // Physics State
+            pos: {x:0, y:0, z:0},
+            vel: {x:0, y:0, z:0},
+            rot: 0
+        },
 
-    const INPUT = {
-        active: false,
-        hist: [],
-        last: { x:0, y:0, t:0 }
-    };
-
-    const LOGIC = {
         init: () => {
-            ui.hud();
-            LOGIC.spawn();
+            Game.spawn();
             
-            // Listeners
-            const s = document.body;
-            s.addEventListener('touchstart', LOGIC.start, {passive:false});
-            s.addEventListener('touchmove', LOGIC.move, {passive:false});
-            s.addEventListener('touchend', LOGIC.end, {passive:false});
-            
-            // Mouse
-            s.addEventListener('mousedown', LOGIC.start);
-            window.addEventListener('mousemove', LOGIC.move);
-            window.addEventListener('mouseup', LOGIC.end);
+            // Input Listeners
+            const stage = document.body;
+            stage.addEventListener('touchstart', Input.start, {passive: false});
+            stage.addEventListener('touchmove', Input.move, {passive: false});
+            stage.addEventListener('touchend', Input.end, {passive: false});
+            stage.addEventListener('mousedown', Input.start);
+            window.addEventListener('mousemove', Input.move);
+            window.addEventListener('mouseup', Input.end);
 
-            requestAnimationFrame(LOGIC.loop);
+            // Start Physics Loop
+            requestAnimationFrame(Game.loop);
         },
 
         spawn: () => {
-            const m = DATA.mon[Math.floor(Math.random()*DATA.mon.length)];
-            document.getElementById('poke-sprite').src = ASSETS.poke + m.id + '.png';
-            document.getElementById('poke-sprite').style.opacity = 1;
-            document.getElementById('poke-sprite').style.transform = 'scale(1)';
-            document.getElementById('ring-sys').style.display = 'flex';
-            document.getElementById('r-in').style.borderColor = Math.random()>0.5 ? 'red' : 'orange';
-            LOGIC.reset();
+            const m = DB.mons[Math.floor(Math.random()*DB.mons.length)];
+            const cp = Math.floor(Math.random()*2500)+100;
+            Game.state.mon = m;
+            Game.state.berry = null;
+
+            // Update DOM
+            document.getElementById('pokemon-sprite').src = ASSETS.poke + m.id + '.png';
+            document.getElementById('pokemon-sprite').style.transform = 'scale(1)';
+            document.getElementById('pokemon-sprite').style.opacity = 1;
+            document.getElementById('cp-tag').innerText = `${m.n} CP ${cp}`;
+            document.getElementById('active-berry').style.display = 'none';
+            document.getElementById('ring-container').style.display = 'flex';
+            
+            // Random Target Color
+            const colors = ['#FF0000', '#FF9800', '#4CAF50'];
+            document.getElementById('ring-target').style.borderColor = colors[Math.floor(Math.random()*3)];
+
+            Game.resetBall();
         },
 
-        reset: () => {
-            STATE.mode = 'idle';
-            STATE.spin = 0;
-            STATE.rot = 0;
-            const b = document.getElementById('ball-wrap');
-            b.style.transition = 'all 0.4s cubic-bezier(0.19, 1, 0.22, 1)';
+        resetBall: () => {
+            Game.state.mode = 'idle';
+            Game.state.spin = 0;
+            Game.state.rot = 0;
+            const b = document.getElementById('ball-container');
+            const g = document.getElementById('ball-sprite');
+            
+            b.style.transition = 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'; // Springy reset
             b.style.left = '50%';
-            b.style.top = 'auto'; 
-            b.style.bottom = '15%';
+            b.style.top = 'auto';
+            b.style.bottom = '10%';
             b.style.transform = 'translate3d(-50%, 0, 0) scale(1)';
-            document.getElementById('ball-img').style.transform = 'rotate(0deg)';
             b.style.display = 'block';
+            g.style.transform = 'rotate(0deg)';
         },
 
-        // --- INPUT ---
+        /* --- PHYSICS LOOP --- */
+        loop: () => {
+            if (Game.state.mode === 'hold') {
+                // Visual Spin during hold
+                if (Math.abs(Game.state.spin) > 0.5) {
+                    Game.state.rot += Game.state.spin * 15;
+                    document.getElementById('ball-sprite').style.transform = `rotate(${Game.state.rot}deg)`;
+                    
+                    // Create Sparkles
+                    if(Math.abs(Game.state.spin) > 2 && Math.random() > 0.7) {
+                        FX.sparkle(Game.state.pos.x, Game.state.pos.y);
+                    }
+                }
+                // Decay spin
+                Game.state.spin *= 0.9;
+            }
+            else if (Game.state.mode === 'fly') {
+                const s = Game.state;
+                
+                // Position Updates
+                s.pos.x += s.vel.x;
+                s.pos.y += s.vel.y;
+                s.pos.z += s.vel.z;
+
+                // Forces
+                s.vel.y += 0.85; // Gravity
+                s.vel.z *= 0.98; // Air Resistance
+                s.vel.x += s.spin * 0.4; // MAGNUS EFFECT (Curve)
+
+                // Visual Rotation
+                s.rot += s.spin * 20 + 5; // Spin faster in air
+                
+                // Perspective Scale
+                const perspective = 800;
+                const scale = perspective / (perspective + s.pos.z);
+                
+                // Render
+                const b = document.getElementById('ball-container');
+                const g = document.getElementById('ball-sprite');
+                
+                b.style.left = s.pos.x + 'px';
+                b.style.top = s.pos.y + 'px';
+                b.style.transform = `translate3d(-50%, -50%, 0) scale(${scale})`;
+                g.style.transform = `rotate(${s.rot}deg)`;
+
+                // --- COLLISIONS ---
+                
+                // Target Depth Reached?
+                if (s.pos.z > 250 && s.pos.z < 350) {
+                    const rect = document.getElementById('pokemon-container').getBoundingClientRect();
+                    // Ball Screen Coords
+                    const bx = s.pos.x;
+                    const by = s.pos.y;
+                    
+                    // Check Hitbox
+                    if (bx > rect.left && bx < rect.right && by > rect.top && by < rect.bottom) {
+                        Game.hit();
+                    }
+                }
+                
+                // Missed
+                if (s.pos.z > 400 || s.pos.y > window.innerHeight) {
+                    Game.miss();
+                }
+            }
+
+            requestAnimationFrame(Game.loop);
+        },
+
+        hit: () => {
+            Game.state.mode = 'catch';
+            
+            // Calculate Accuracy
+            const outer = document.getElementById('ring-outer').offsetWidth;
+            const target = document.getElementById('ring-target').offsetWidth;
+            const ratio = target/outer;
+            
+            let msg="Nice!", col="white";
+            if(ratio < 0.2) { msg="Excellent!"; col="#FFD700"; }
+            else if(ratio < 0.5) { msg="Great!"; col="red"; }
+            else if(ratio > 0.9) { msg=""; }
+
+            if(msg) UI.toast(msg, col);
+
+            // Visual Capture
+            document.getElementById('ring-container').style.display = 'none';
+            const b = document.getElementById('ball-container');
+            const p = document.getElementById('pokemon-container').getBoundingClientRect();
+            
+            // Snap to center
+            b.style.transition = 'all 0.1s linear';
+            b.style.left = (p.left + p.width/2) + 'px';
+            b.style.top = (p.top + p.height/2) + 'px';
+            b.style.transform = `translate(-50%, -50%) scale(0.6)`;
+            
+            // Suck Pokemon
+            const sprite = document.getElementById('pokemon-sprite');
+            sprite.style.transition = 'all 0.4s ease-in';
+            sprite.style.transform = 'scale(0) rotate(270deg)';
+            sprite.style.opacity = 0;
+
+            setTimeout(() => {
+                // Drop to ground
+                b.style.transition = 'top 0.4s ease-out';
+                b.style.top = (p.bottom + 40) + 'px';
+                setTimeout(() => Game.shakeCheck(0), 400);
+            }, 400);
+        },
+
+        shakeCheck: (count) => {
+            const b = document.getElementById('ball-sprite');
+            
+            // Shake Logic
+            if(count >= 3) {
+                // Success
+                UI.toast(`Gotcha!`, "#4CAF50");
+                document.getElementById('ball-container').classList.add('catch-flash');
+                setTimeout(() => {
+                    document.getElementById('ball-container').classList.remove('catch-flash');
+                    Game.spawn();
+                }, 2000);
+                return;
+            }
+            
+            // RNG (50/50 for demo)
+            if(Math.random() > 0.4) {
+                // Shake Animation
+                b.style.animation = 'none';
+                b.offsetHeight; 
+                b.parentElement.classList.add('shake');
+                setTimeout(() => {
+                    b.parentElement.classList.remove('shake');
+                    Game.shakeCheck(count + 1);
+                }, 1000);
+            } else {
+                // Breakout
+                UI.toast("Broke free!", "white");
+                document.getElementById('ball-container').style.display = 'none';
+                
+                const sprite = document.getElementById('pokemon-sprite');
+                sprite.style.transform = 'scale(1)';
+                sprite.style.opacity = 1;
+                document.getElementById('ring-container').style.display = 'flex';
+                Game.state.berry = null;
+                document.getElementById('active-berry').style.display = 'none';
+                
+                setTimeout(Game.resetBall, 1000);
+            }
+        },
+
+        miss: () => {
+            Game.state.mode = 'idle';
+            setTimeout(Game.resetBall, 600);
+        }
+    };
+
+    /* --- INPUT SYSTEM --- */
+    const Input = {
+        active: false,
+        hist: [],
+
         start: (e) => {
-            if (STATE.mode !== 'idle') return;
+            if (Game.state.mode !== 'idle') return;
             const p = e.touches ? e.touches[0] : e;
-            const h = window.innerHeight;
             
-            // Allow grab bottom 60%
-            if (p.clientY < h * 0.4) return;
-            
+            // Only interact if touching ball area (generous hit area)
+            const rect = document.getElementById('ball-container').getBoundingClientRect();
+            const pad = 100; // Large grab area
+            if (p.clientX < rect.left - pad || p.clientX > rect.right + pad || p.clientY < rect.top - pad) return;
+
             e.preventDefault();
-            INPUT.active = true;
-            STATE.mode = 'hold';
-            INPUT.hist = [];
+            Input.active = true;
+            Game.state.mode = 'hold';
+            Input.hist = [];
             
-            // Visual Snap to finger
-            const b = document.getElementById('ball-wrap');
-            b.style.transition = 'none'; // Instant follow
-            b.style.transform = 'translate3d(-50%, -50%, 0) scale(1.1)'; // Held scale
+            // Visual Pickup
+            const b = document.getElementById('ball-container');
+            b.style.transition = 'none';
+            b.style.transform = `translate3d(-50%, -50%, 0) scale(1.1)`;
             
-            LOGIC.track(p.clientX, p.clientY);
+            Input.track(p.clientX, p.clientY);
         },
 
         move: (e) => {
-            if (!INPUT.active) return;
+            if (!Input.active) return;
             e.preventDefault();
             const p = e.touches ? e.touches[0] : e;
-            LOGIC.track(p.clientX, p.clientY);
+            Input.track(p.clientX, p.clientY);
         },
 
         track: (x, y) => {
             const now = Date.now();
-            INPUT.hist.push({x, y, t:now});
-            if (INPUT.hist.length > 8) INPUT.hist.shift(); // Keep last 8 frames
+            Input.hist.push({x, y, t:now});
+            if (Input.hist.length > 8) Input.hist.shift();
 
-            // Update Ball Position immediately
-            STATE.pos.x = x;
-            STATE.pos.y = y;
+            // Update Physics State Pos
+            Game.state.pos.x = x;
+            Game.state.pos.y = y;
 
-            // SPIN CALCULATION
-            if (INPUT.hist.length > 2) {
-                const prev = INPUT.hist[INPUT.hist.length-2];
+            // Detect Spin (Change in angle)
+            if (Input.hist.length > 3) {
+                const prev = Input.hist[Input.hist.length-2];
                 const dx = x - prev.x;
                 const dy = y - prev.y;
-                
-                // Rotational movement detection (Cross Product-ish)
-                // This detects if we are moving in a circle
-                const cx = window.innerWidth / 2;
-                const cy = window.innerHeight * 0.8; // Rough center of spin area
-                
-                // Simple spin accumulation based on lateral velocity
-                STATE.spin = dx * 1.5; 
-                STATE.rot += STATE.spin;
+                // Simple lateral velocity contributes to spin
+                Game.state.spin = dx * 0.8; 
             }
         },
 
         end: (e) => {
-            if (!INPUT.active) return;
-            INPUT.active = false;
+            if (!Input.active) return;
+            Input.active = false;
             
-            const hist = INPUT.hist;
-            if (hist.length < 3) { LOGIC.reset(); return; }
+            const hist = Input.hist;
+            if(hist.length < 2) { Game.resetBall(); return; }
             
             const start = hist[0];
             const end = hist[hist.length-1];
             const dt = end.t - start.t;
             
-            // Anti-Hold
-            if (Date.now() - end.t > 150) { LOGIC.reset(); return; }
+            if(Date.now() - end.t > 150) { Game.resetBall(); return; }
 
             const vx = (end.x - start.x) / dt;
             const vy = (end.y - start.y) / dt;
 
             // Throw Threshold
-            if (vy > -0.5) { LOGIC.reset(); return; }
+            if (vy > -0.5) { Game.resetBall(); return; }
 
-            // Launch
-            if (DATA.inv[STATE.ball].qty > 0) DATA.inv[STATE.ball].qty--;
-            ui.hud();
+            // Consume Ball
+            if(DB.balls[Game.state.ball].qty > 0) DB.balls[Game.state.ball].qty--;
+            UI.updateIcon();
+
+            // Launch Physics
+            Game.state.mode = 'fly';
+            const b = document.getElementById('ball-container');
+            b.style.transition = 'none'; // Hand over to Physics Loop
             
-            STATE.mode = 'fly';
-            STATE.vel.x = vx * 18;
-            STATE.vel.y = vy * 18; 
-            STATE.vel.z = Math.abs(vy) * 22; // Depth speed based on throw power
+            Game.state.vel.x = vx * 16;
+            Game.state.vel.y = vy * 16;
+            Game.state.vel.z = Math.abs(vy) * 28; // Depth derived from power
             
-            // Curve Logic
-            STATE.spin = (STATE.spin || 0) * 0.5; // Carry over spin momentum
-            
-            // Reset Z pos for flight
-            STATE.pos.z = 0;
-            // X/Y start from release point
-            STATE.pos.x = end.x;
-            STATE.pos.y = end.y;
-        },
-
-        // --- PHYSICS LOOP ---
-        loop: () => {
-            const b = document.getElementById('ball-wrap');
-            const g = document.getElementById('ball-img');
-
-            if (STATE.mode === 'hold') {
-                // Follow Finger
-                b.style.left = STATE.pos.x + 'px';
-                b.style.top = STATE.pos.y + 'px';
-                g.style.transform = `rotate(${STATE.rot}deg)`;
-            }
-            else if (STATE.mode === 'fly') {
-                // Physics Steps
-                STATE.pos.x += STATE.vel.x;
-                STATE.pos.y += STATE.vel.y;
-                STATE.pos.z += STATE.vel.z;
-
-                // Gravity
-                STATE.vel.vy += 0.7;
-                
-                // Magnus Effect (Curve)
-                STATE.vel.x += STATE.spin * 0.1;
-                
-                // Drag
-                STATE.vel.z *= 0.98;
-
-                // Visual Render (Perspective)
-                const d = 700;
-                const scale = d / (d + STATE.pos.z);
-                
-                // Rotation visualization
-                STATE.rot += STATE.spin * 2;
-
-                b.style.left = STATE.pos.x + 'px';
-                b.style.top = STATE.pos.y + 'px';
-                b.style.transform = `translate3d(-50%, -50%, 0) scale(${scale})`;
-                g.style.transform = `rotate(${STATE.rot}deg)`;
-
-                // HIT Check (Depth ~100)
-                if (STATE.pos.z > 90) {
-                    // Check Screen Coords against Target
-                    const t = document.getElementById('pokemon-wrap').getBoundingClientRect();
-                    // Ball center
-                    const bx = STATE.pos.x;
-                    const by = STATE.pos.y;
-                    
-                    if (bx > t.left && bx < t.right && by > t.top && by < t.bottom) {
-                        LOGIC.hit();
-                    } else if (STATE.pos.z > 200) {
-                        // Missed depth
-                        LOGIC.miss();
-                    }
-                }
-                
-                // Floor/Sky Check
-                if (STATE.pos.y > window.innerHeight + 50) LOGIC.miss();
-            }
-
-            requestAnimationFrame(LOGIC.loop);
-        },
-
-        hit: () => {
-            STATE.mode = 'catch';
-            
-            // Calculate Bonus
-            const inner = document.getElementById('r-in').offsetWidth;
-            const outer = document.getElementById('r-out').offsetWidth;
-            const ratio = inner/outer;
-            
-            let txt="Nice!"; let col="#fff";
-            if (ratio < 0.2) { txt="Excellent!"; col="#FFD700"; }
-            else if (ratio < 0.5) { txt="Great!"; col="red"; }
-            else if (ratio > 0.9) txt=""; 
-            
-            if(txt) ui.toast(txt, col);
-
-            // Hide Rings
-            document.getElementById('ring-sys').style.display = 'none';
-
-            // Snap Animation
-            const b = document.getElementById('ball-wrap');
-            const t = document.getElementById('pokemon-wrap').getBoundingClientRect();
-            b.style.transition = 'all 0.1s';
-            b.style.left = (t.left + t.width/2) + 'px';
-            b.style.top = (t.top + t.height/2) + 'px';
-            b.style.transform = 'translate(-50%, -50%) scale(0.6)';
-
-            // Suck
-            const s = document.getElementById('poke-sprite');
-            s.style.transition = 'all 0.4s';
-            s.style.transform = 'scale(0) rotate(180deg)';
-            s.style.opacity = 0;
-
-            // Drop & Shake
-            setTimeout(() => {
-                b.style.transition = 'top 0.4s ease-out';
-                b.style.top = (t.bottom + 60) + 'px';
-                setTimeout(() => LOGIC.shake(0), 500);
-            }, 400);
-        },
-
-        miss: () => {
-            STATE.mode = 'idle';
-            ui.toast("Miss!", "#aaa");
-            setTimeout(LOGIC.reset, 500);
-        },
-
-        shake: (count) => {
-            if (count >= 3) {
-                ui.toast("Gotcha!", "#4CAF50");
-                document.getElementById('ball-wrap').classList.add('sparkle');
-                setTimeout(() => {
-                    document.getElementById('ball-wrap').classList.remove('sparkle');
-                    LOGIC.spawn();
-                }, 2000);
-                return;
-            }
-
-            const b = document.getElementById('ball-img');
-            // Mock Catch Rate (50%)
-            if (Math.random() > 0.5) {
-                b.style.animation = 'none';
-                b.offsetHeight;
-                b.parentElement.style.animation = 'shake 0.8s';
-                setTimeout(() => LOGIC.shake(count+1), 1000);
-            } else {
-                ui.toast("Escaped!");
-                document.getElementById('ball-wrap').style.display = 'none';
-                const s = document.getElementById('poke-sprite');
-                s.style.transform = 'scale(1)'; s.style.opacity = 1;
-                document.getElementById('ring-sys').style.display = 'flex';
-                setTimeout(LOGIC.reset, 1000);
-            }
+            // Reset Z
+            Game.state.pos.z = 0;
+            // X/Y is last known
         }
     };
 
-    const ui = {
-        hud: () => {
-            const i = DATA.inv[STATE.ball];
-            document.getElementById('hud-icon').src = ASSETS.item + i.img;
-            document.getElementById('ball-img').style.backgroundImage = `url('${ASSETS.item + i.img}')`;
-        },
-        menu: (type) => {
-            if (STATE.mode !== 'idle') return;
-            const list = document.getElementById('menu-list');
-            list.innerHTML = '';
-            for (let k in DATA.inv) {
-                const i = DATA.inv[k];
-                if (i.t !== type) continue;
-                const r = document.createElement('div');
-                r.className = 'row';
-                r.onclick = () => {
-                    if (type === 'ball') STATE.ball = k;
-                    else if (type === 'berry') STATE.berry = k;
-                    ui.hud(); ui.close();
-                };
-                r.innerHTML = `<img src="${ASSETS.item+i.img}" width="40" style="margin-right:10px"> <b>${k}</b> x${i.qty}`;
-                list.appendChild(r);
-            }
-            document.getElementById('menu-pnl').classList.add('open');
-        },
-        close: () => document.getElementById('menu-pnl').classList.remove('open'),
+    /* --- FX & UI --- */
+    const FX = {
+        sparkle: (x, y) => {
+            const el = document.createElement('div');
+            el.className = 'sparkle';
+            // Random offset around finger
+            const ox = (Math.random()-0.5) * 60;
+            const oy = (Math.random()-0.5) * 60;
+            el.style.left = (x + ox) + 'px';
+            el.style.top = (y + oy) + 'px';
+            document.body.appendChild(el);
+            
+            // Animate
+            requestAnimationFrame(() => {
+                el.style.transition = 'all 0.5s ease-out';
+                el.style.opacity = 1;
+                el.style.transform = 'scale(0)';
+                setTimeout(() => el.remove(), 500);
+            });
+        }
+    };
+
+    const UI = {
         toast: (msg, col) => {
             const t = document.getElementById('toast');
             t.innerText = msg;
-            t.style.color = col;
-            t.style.borderColor = col;
-            t.classList.add('show');
-            setTimeout(() => t.classList.remove('show'), 1500);
+            t.style.textShadow = `0 0 5px ${col}, 2px 2px 0 black`;
+            t.classList.add('visible');
+            setTimeout(() => t.classList.remove('visible'), 2000);
+        },
+        open: (type) => {
+            if(Game.state.mode !== 'idle') return;
+            const list = document.getElementById('drawer-list');
+            list.innerHTML = '';
+            document.getElementById('drawer-title').innerText = "SELECT " + type.toUpperCase();
+            
+            const data = type === 'ball' ? DB.balls : DB.berries;
+            for(let key in data) {
+                const item = data[key];
+                const row = document.createElement('div');
+                row.className = 'drawer-item';
+                row.onclick = () => UI.select(type, key);
+                row.innerHTML = `
+                    <img src="${ASSETS.item + item.img}" width="40" style="margin-right:15px">
+                    <div style="flex:1"><b>${key}</b><br><small>x${item.qty}</small></div>
+                `;
+                list.appendChild(row);
+            }
+            document.getElementById('menu-drawer').classList.add('open');
+        },
+        close: () => document.getElementById('menu-drawer').classList.remove('open'),
+        select: (type, key) => {
+            const item = type === 'ball' ? DB.balls[key] : DB.berries[key];
+            if(item.qty <= 0) return;
+            
+            if(type === 'ball') {
+                Game.state.ball = key;
+                UI.updateIcon();
+            } else {
+                if(Game.state.berry) return;
+                item.qty--;
+                Game.state.berry = key;
+                document.getElementById('active-berry').src = ASSETS.item + item.img;
+                document.getElementById('active-berry').style.display = 'block';
+                UI.toast(key + " used!", "#E91E63");
+            }
+            UI.close();
+        },
+        updateIcon: () => {
+            const img = DB.balls[Game.state.ball].img;
+            document.getElementById('current-ball-icon').src = ASSETS.item + img;
+            document.getElementById('ball-sprite').style.backgroundImage = `url('${ASSETS.item + img}')`;
         }
     };
 
-    window.onload = LOGIC.init;
+    window.onload = Game.init;
 </script>
 </body>
 </html>
