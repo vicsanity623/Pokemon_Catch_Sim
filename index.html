@@ -265,6 +265,31 @@
         }
 
     </style>
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="manifest.json">
+
+    <!-- iOS Specific Meta Tags (Crucial for "App feel") -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PokeCatch">
+    
+    <!-- iOS Icon (Using Master Ball as the app icon) -->
+    <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png">
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
 </head>
 <body>
 
