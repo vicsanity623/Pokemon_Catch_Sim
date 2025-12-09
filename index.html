@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- FORCE NO-CACHE -->
+    <!-- NO-CACHE HEADERS: Tells browser to check for new version every time -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <title>Pokémon Catch Sim v10</title>
+    <title>Pokémon Catch Sim Final</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -20,7 +20,7 @@
         /* --- RESET & LAYOUT --- */
         body, html {
             margin: 0; padding: 0; width: 100%; height: 100%;
-            overflow: hidden; background: #5CA0F0; /* Blue Fallback */
+            overflow: hidden; background: #5CA0F0;
             font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             touch-action: none; user-select: none; -webkit-user-select: none;
         }
@@ -28,7 +28,7 @@
         #game-stage {
             position: relative; width: 100%; height: 100%;
             overflow: hidden;
-            /* PURE CSS ENVIRONMENT (No external images to fail) */
+            /* High Fidelity CSS Environment */
             background: linear-gradient(to bottom, 
                 #5CA0F0 0%, 
                 #C3E0F8 50%, 
@@ -137,7 +137,7 @@
         }
         #toast.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
-        /* Menus */
+        /* Inventory Menus */
         .drawer {
             position: absolute; bottom: 0; left: 0; width: 100%;
             background: #fff; border-radius: 20px 20px 0 0;
@@ -216,16 +216,25 @@
 
     </style>
     
-    <!-- AUTO-UPDATE SCRIPT -->
+    <!-- SAFE AUTO-UPDATE SCRIPT -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=' + new Date().getTime())
+                // Register SW normally. Browser checks byte difference automatically.
+                navigator.serviceWorker.register('sw.js')
                     .then(registration => {
+                        console.log('SW registered');
+                        
+                        // Check if a new SW is waiting to activate
+                        if (registration.waiting) {
+                            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        }
+
                         registration.onupdatefound = () => {
                             const newWorker = registration.installing;
                             newWorker.onstatechange = () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    // New version found, force reload safely
                                     window.location.reload();
                                 }
                             };
@@ -233,7 +242,12 @@
                     })
                     .catch(err => console.log('SW Fail:', err));
             });
+
+            // Reload only when the controlling worker changes (actual update)
+            let refreshing;
             navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
                 window.location.reload();
             });
         }
@@ -345,7 +359,8 @@
             rot: 0,
             throwGrade: null, 
             isCurve: false,
-            shakeTarget: 0 
+            shakeTarget: 0,
+            transitioning: false // PREVENTS INFINITE SPAWN/DOUBLE CLICK
         },
 
         init: () => {
@@ -363,6 +378,7 @@
         },
 
         spawn: () => {
+            Game.state.transitioning = false; // Unlock game
             const m = DB.mons[Math.floor(Math.random()*DB.mons.length)];
             const cp = Math.floor(Math.random()*2500)+100;
             Game.state.mon = m;
@@ -556,6 +572,10 @@
         },
 
         nextPokemon: () => {
+            // DEBOUNCE: Prevents double-clicking
+            if (Game.state.transitioning) return;
+            Game.state.transitioning = true;
+
             const res = document.getElementById('result-overlay');
             res.classList.remove('visible');
             setTimeout(() => {
