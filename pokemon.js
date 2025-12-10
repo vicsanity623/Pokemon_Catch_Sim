@@ -1,19 +1,23 @@
 const PokeDetail = {
     currentIndex: null,
     
-    // Evolution Data (Mapping IDs to their next evolution)
+    // Hardcoded Evolutions for the "Starter" set (Expanded for the demo logic)
+    // In a real full app, this would query an API, but for this persistent local demo we map the common ones.
     evolutions: {
         1: 2, 2: 3, // Bulbasaur -> Ivysaur -> Venusaur
         4: 5, 5: 6, // Charmander -> Charmeleon -> Charizard
         7: 8, 8: 9, // Squirtle -> Wartortle -> Blastoise
         25: 26,     // Pikachu -> Raichu
-        133: 134,   // Eevee -> Vaporeon (Simplified)
+        133: 134,   // Eevee -> Vaporeon
         92: 93, 93: 94, // Gastly -> Haunter -> Gengar
-        143: null,  // Snorlax (No evo)
-        150: null   // Mewtwo (No evo)
+        
+        // Add a few more common base forms for the demo feel
+        172: 25,    // Pichu -> Pikachu (If we wanted babies, but we are spawning base)
+        10: 11, 11: 12, // Caterpie
+        13: 14, 14: 15, // Weedle
+        16: 17, 17: 18, // Pidgey
     },
 
-    // Costs
     costs: {
         powerUp: { dust: 200, candy: 1 },
         evolve: { dust: 0, candy: 25 }
@@ -27,33 +31,25 @@ const PokeDetail = {
 
     close: () => {
         document.getElementById('pokemon-detail-screen').classList.remove('active');
-        // Refresh storage grid in background in case stats changed
-        UI.openStorage(); 
+        UI.openStorage(); // Refresh storage grid
     },
 
     render: () => {
         const p = Data.storage[PokeDetail.currentIndex];
         if(!p) return PokeDetail.close();
 
-        // Calculate Attributes based on CP (Mocking logic)
+        // Stats
         const weight = (p.cp / 100).toFixed(2);
         const height = (p.cp / 1000).toFixed(2);
         const hp = Math.floor(p.cp / 10);
         
         // Resources
         const dust = Data.inventory['Stardust'] || 0;
-        // In this simple version, we use generic "Candy". 
-        // To be exact like GO, we'd need specific candy types. 
-        // For now, we will use the "Pinap Berry" count or a new generic "Rare Candy" logic.
-        // **Modification**: Let's create a generic "Candy" pool for simplicity in this version, 
-        // derived from the Pokemon's catch data or just use universal candy.
-        // For this demo, let's use the 'Pinap Berry' count as "Candies" for visual simplicity, 
-        // OR better: Let's assume Data.user has a 'candy' property we added in v12.
-        
-        // Let's use the generic Data.user.candy we added in the previous version
         const candy = Data.user.candy || 0; 
+        
+        // LOGIC CHANGE: Use Family Name for Candy, fallback to Name if missing
+        const candyName = p.family || p.name;
 
-        // DOM Elements
         const screen = document.getElementById('pokemon-detail-screen');
         
         screen.innerHTML = `
@@ -100,11 +96,11 @@ const PokeDetail = {
                     <div class="pd-res">
                         <div class="pd-candy-icon"></div>
                         <span>${candy}</span>
-                        <span class="pd-res-label">${p.name.toUpperCase()} CANDY</span>
+                        <!-- CORRECTED CANDY NAME -->
+                        <span class="pd-res-label">${candyName.toUpperCase()} CANDY</span>
                     </div>
                 </div>
 
-                <!-- POWER UP BUTTON -->
                 <div class="pd-action-btn" onclick="PokeDetail.powerUp()">
                     <div class="pd-btn-left">
                         <span class="pd-btn-title">POWER UP</span>
@@ -119,7 +115,6 @@ const PokeDetail = {
                     </div>
                 </div>
 
-                <!-- EVOLVE BUTTON (Only if evolution exists) -->
                 ${PokeDetail.evolutions[p.id] ? `
                 <div class="pd-action-btn pd-evolve-btn" onclick="PokeDetail.evolve()">
                     <div class="pd-btn-left">
@@ -133,7 +128,6 @@ const PokeDetail = {
                 </div>` : ''}
 
             </div>
-
             <button class="pd-close-fab" onclick="PokeDetail.close()">✕</button>
         `;
     },
@@ -142,24 +136,19 @@ const PokeDetail = {
         const p = Data.storage[PokeDetail.currentIndex];
         const cost = PokeDetail.costs.powerUp;
         
-        // Init Stardust if missing
         if(!Data.inventory['Stardust']) Data.inventory['Stardust'] = 0;
         if(!Data.user.candy) Data.user.candy = 0;
 
         if (Data.inventory['Stardust'] >= cost.dust && Data.user.candy >= cost.candy) {
-            // Pay
             Data.inventory['Stardust'] -= cost.dust;
             Data.user.candy -= cost.candy;
-            
-            // Effect
             const boost = Math.floor(Math.random() * 30) + 10;
             p.cp += boost;
-            
             Game.save();
-            PokeDetail.render(); // Re-render to show new stats
+            PokeDetail.render(); 
             UI.toast(`Power Up! +${boost} CP`, "#4CAF50");
         } else {
-            UI.toast("Not enough Candy or Stardust!", "red");
+            UI.toast("Not enough resources!", "red");
         }
     },
 
@@ -171,23 +160,22 @@ const PokeDetail = {
         if(!nextId) return;
 
         if (Data.user.candy >= cost.candy) {
-            // Pay
             Data.user.candy -= cost.candy;
             
-            // Effect
             p.id = nextId;
-            p.cp = Math.floor(p.cp * 1.6); // Big CP Jump
-            // Fetch new name (simple logic, in real app needs DB lookup)
-            // We will just clear the name so it re-fetches or use generic logic
-            // For this demo, let's look up the name in our Meta list if possible, or generic
+            p.cp = Math.floor(p.cp * 1.6);
+            
+            // We need the new name. For the demo list, we can try to guess or fetch.
+            // Simple approach: Check our Meta list or just use "Evolved Form" if unknown in offline mode.
+            // Ideally, we'd fetch the name, but to keep it simple and synchronous:
             const metaMon = Meta.mons.find(m => m.id === nextId);
             p.name = metaMon ? metaMon.n : "Evolved Form"; 
+            
+            // NOTE: p.family is NOT changed here. It remains "Gastly" even if name is "Gengar".
 
             Game.save();
             PokeDetail.render();
-            UI.toast(`Evolved into ${p.name}!`, "#9C27B0");
-            
-            // Trigger a flash effect
+            UI.toast(`Evolved!`, "#9C27B0");
             document.querySelector('.pd-hero').classList.add('evolve-flash');
         } else {
             UI.toast("Not enough Candy!", "red");
