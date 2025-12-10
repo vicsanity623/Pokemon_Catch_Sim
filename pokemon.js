@@ -1,7 +1,6 @@
 const PokeDetail = {
     currentIndex: null,
     
-    // Costs
     costs: {
         powerUp: { dust: 200, candy: 1 },
         evolve: { dust: 0, candy: 25 }
@@ -22,18 +21,16 @@ const PokeDetail = {
         const p = Data.storage[PokeDetail.currentIndex];
         if(!p) return PokeDetail.close();
 
-        // Calculate Attributes based on CP
         const weight = (p.cp / 100).toFixed(2);
         const height = (p.cp / 1000).toFixed(2);
         const hp = Math.floor(p.cp / 10);
         
         const dust = Data.inventory['Stardust'] || 0;
         
-        // FIX: Ensure we look up the candy using the exact family name saved in Data.candyBag
+        // CORRECT CANDY LOOKUP
         const familyName = p.family || p.name;
         const candy = (Data.candyBag && Data.candyBag[familyName]) ? Data.candyBag[familyName] : 0;
 
-        // CHECK IF EVOLUTION IS AVAILABLE FROM SAVED DATA
         const canEvolve = p.nextId && p.nextId !== null;
 
         const screen = document.getElementById('pokemon-detail-screen');
@@ -86,7 +83,6 @@ const PokeDetail = {
                     </div>
                 </div>
 
-                <!-- POWER UP -->
                 <div class="pd-action-btn" onclick="PokeDetail.powerUp()">
                     <div class="pd-btn-left">
                         <span class="pd-btn-title">POWER UP</span>
@@ -101,7 +97,6 @@ const PokeDetail = {
                     </div>
                 </div>
 
-                <!-- EVOLVE (Dynamic Check) -->
                 ${canEvolve ? `
                 <div class="pd-action-btn pd-evolve-btn" onclick="PokeDetail.evolve()">
                     <div class="pd-btn-left">
@@ -122,13 +117,14 @@ const PokeDetail = {
     powerUp: () => {
         const p = Data.storage[PokeDetail.currentIndex];
         const cost = PokeDetail.costs.powerUp;
+        const familyName = p.family || p.name;
         
         if(!Data.inventory['Stardust']) Data.inventory['Stardust'] = 0;
-        if(!Data.user.candy) Data.user.candy = 0;
+        if(!Data.candyBag[familyName]) Data.candyBag[familyName] = 0;
 
-        if (Data.inventory['Stardust'] >= cost.dust && Data.user.candy >= cost.candy) {
+        if (Data.inventory['Stardust'] >= cost.dust && Data.candyBag[familyName] >= cost.candy) {
             Data.inventory['Stardust'] -= cost.dust;
-            Data.user.candy -= cost.candy;
+            Data.candyBag[familyName] -= cost.candy;
             const boost = Math.floor(Math.random() * 30) + 10;
             p.cp += boost;
             Game.save();
@@ -142,44 +138,36 @@ const PokeDetail = {
     evolve: () => {
         const p = Data.storage[PokeDetail.currentIndex];
         const cost = PokeDetail.costs.evolve;
+        const familyName = p.family || p.name;
 
         if(!p.nextId) return;
 
-        if (Data.user.candy >= cost.candy) {
-            Data.user.candy -= cost.candy;
+        if (Data.candyBag[familyName] >= cost.candy) {
+            Data.candyBag[familyName] -= cost.candy;
             
-            // 1. Update ID and Stats
-            const oldId = p.id;
             p.id = p.nextId;
             p.cp = Math.floor(p.cp * 1.6);
             
-            // 2. Fetch New Name (Attempt)
-            // We set a temporary name, then try to fetch the real one
+            // Temporary Name
             p.name = "Evolving...";
             PokeDetail.render();
 
             fetch(`https://pokeapi.co/api/v2/pokemon/${p.id}`)
                 .then(r => r.json())
                 .then(d => {
-                    // Clean Name
                     p.name = d.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                    
-                    // 3. Check if there is a FURTHER evolution (Grandchild)
-                    // We must fetch the species again to see if this new form has an evolution
+                    // Do NOT update p.family here.
                     return fetch(d.species.url);
                 })
                 .then(r => r.json())
-                .then(sd => {
-                    return fetch(sd.evolution_chain.url);
-                })
+                .then(sd => fetch(sd.evolution_chain.url))
                 .then(r => r.json())
                 .then(evoData => {
-                    // Traverse chain to find what comes after current p.id
+                    // Find if there is another evolution after this one
                     const chain = evoData.chain;
                     let nextNextId = null;
                     const getUrlId = (url) => url.split('/').filter(Boolean).pop();
 
-                    // Recursive finder
                     const findNext = (node) => {
                         if(getUrlId(node.species.url) == p.id) {
                             if(node.evolves_to.length > 0) {
@@ -191,16 +179,16 @@ const PokeDetail = {
                     };
                     findNext(chain);
                     
-                    p.nextId = nextNextId; // Update next step (e.g. Ivysaur -> Venusaur)
+                    p.nextId = nextNextId;
+                    
                     Game.save();
                     PokeDetail.render();
-                    UI.toast(`Evolution Complete!`, "#9C27B0");
+                    UI.toast(`Evolved!`, "#9C27B0");
                     document.querySelector('.pd-hero').classList.add('evolve-flash');
                 })
                 .catch(() => {
-                    // Offline Fallback
                     p.name = "Evolved Form";
-                    p.nextId = null; // Assume final form if offline
+                    p.nextId = null; 
                     Game.save();
                     PokeDetail.render();
                 });
