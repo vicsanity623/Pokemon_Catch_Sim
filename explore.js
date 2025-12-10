@@ -333,7 +333,8 @@ const Explore = {
         UI.openStorage(true, (index) => {
             const p = Data.storage[index];
             if (!p) { UI.closeStorage(); return; }
-            Data.gymDefenders = [{ id: p.id, name: p.name, start: Date.now(), family: p.family }];
+            // Store complete Pokemon object with all properties
+            Data.gymDefenders = [{ ...p, start: Date.now() }];
             Data.storage.splice(index, 1);
             Game.save();
             UI.closeStorage();
@@ -351,13 +352,11 @@ const Explore = {
         if (!Data.candyBag[def.family]) Data.candyBag[def.family] = 0;
         Data.candyBag[def.family] += earned;
         UI.spawnFloatText(`+${earned} ${def.family} Candy`, window.innerWidth / 2, window.innerHeight / 2, "#E91E63");
-        Data.storage.unshift({
-            id: def.id,
-            name: def.name,
-            cp: Math.floor(Math.random() * 2000) + 100,
-            family: def.family,
-            date: new Date().toLocaleDateString()
-        });
+
+        // Return complete Pokemon object with all original properties preserved
+        const { start: _, ...pokemonData } = def; // Remove 'start' property, keep everything else
+        Data.storage.unshift(pokemonData);
+
         Data.gymDefenders = [];
         Game.save();
         Explore.closeGym();
