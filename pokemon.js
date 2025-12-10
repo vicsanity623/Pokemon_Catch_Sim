@@ -1,6 +1,6 @@
 const PokeDetail = {
     currentIndex: null,
-    
+
     costs: {
         powerUp: { dust: 200, candy: 1 },
         evolve: { dust: 0, candy: 25 }
@@ -14,19 +14,19 @@ const PokeDetail = {
 
     close: () => {
         document.getElementById('pokemon-detail-screen').classList.remove('active');
-        UI.openStorage(); 
+        UI.openStorage();
     },
 
     render: () => {
         const p = Data.storage[PokeDetail.currentIndex];
-        if(!p) return PokeDetail.close();
+        if (!p) return PokeDetail.close();
 
         const weight = (p.cp / 100).toFixed(2);
         const height = (p.cp / 1000).toFixed(2);
         const hp = Math.floor(p.cp / 10);
-        
+
         const dust = Data.inventory['Stardust'] || 0;
-        
+
         // CORRECT CANDY LOOKUP
         const familyName = p.family || p.name;
         const candy = (Data.candyBag && Data.candyBag[familyName]) ? Data.candyBag[familyName] : 0;
@@ -34,7 +34,7 @@ const PokeDetail = {
         const canEvolve = p.nextId && p.nextId !== null;
 
         const screen = document.getElementById('pokemon-detail-screen');
-        
+
         screen.innerHTML = `
             <div class="pd-header">
                 <div class="pd-cp-label">CP <span class="pd-cp-val">${p.cp}</span></div>
@@ -69,6 +69,20 @@ const PokeDetail = {
                         <span class="pd-stat-label">Height</span>
                     </div>
                 </div>
+
+                ${p.moves && p.moves.length > 0 ? `
+                <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+                    <div style="text-align: center; font-weight: bold; color: #888; font-size: 12px; margin-bottom: 10px;">MOVES</div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        ${p.moves.map(move => `
+                            <div style="display: flex; justify-content: space-between; align-items: center; background: #f5f5f5; padding: 8px 12px; border-radius: 8px;">
+                                <span style="font-size: 14px; font-weight: 500; color: #333;">${move.name}</span>
+                                <span style="font-size: 14px; font-weight: bold; color: #2196F3;">⚡${move.power}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
 
                 <div class="pd-resources">
                     <div class="pd-res">
@@ -118,17 +132,32 @@ const PokeDetail = {
         const p = Data.storage[PokeDetail.currentIndex];
         const cost = PokeDetail.costs.powerUp;
         const familyName = p.family || p.name;
-        
-        if(!Data.inventory['Stardust']) Data.inventory['Stardust'] = 0;
-        if(!Data.candyBag[familyName]) Data.candyBag[familyName] = 0;
+
+        if (!Data.inventory['Stardust']) Data.inventory['Stardust'] = 0;
+        if (!Data.candyBag[familyName]) Data.candyBag[familyName] = 0;
 
         if (Data.inventory['Stardust'] >= cost.dust && Data.candyBag[familyName] >= cost.candy) {
             Data.inventory['Stardust'] -= cost.dust;
             Data.candyBag[familyName] -= cost.candy;
             const boost = Math.floor(Math.random() * 30) + 10;
             p.cp += boost;
+
+            // INCREASE MOVE POWER
+            if (p.moves && p.moves.length > 0) {
+                p.moves.forEach(move => {
+                    const moveBoost = Math.floor(Math.random() * 6) + 3; // 3-8 power increase
+                    move.power += moveBoost;
+                });
+            } else {
+                // Add default moves if none exist (backwards compatibility)
+                p.moves = [
+                    { name: 'Tackle', power: 40, type: 'normal' },
+                    { name: 'Quick Attack', power: 40, type: 'normal' }
+                ];
+            }
+
             Game.save();
-            PokeDetail.render(); 
+            PokeDetail.render();
             UI.toast(`Power Up! +${boost} CP`, "#4CAF50");
         } else {
             UI.toast("Not enough resources!", "red");
@@ -140,14 +169,14 @@ const PokeDetail = {
         const cost = PokeDetail.costs.evolve;
         const familyName = p.family || p.name;
 
-        if(!p.nextId) return;
+        if (!p.nextId) return;
 
         if (Data.candyBag[familyName] >= cost.candy) {
             Data.candyBag[familyName] -= cost.candy;
-            
+
             p.id = p.nextId;
             p.cp = Math.floor(p.cp * 1.6);
-            
+
             // Temporary Name
             p.name = "Evolving...";
             PokeDetail.render();
@@ -169,8 +198,8 @@ const PokeDetail = {
                     const getUrlId = (url) => url.split('/').filter(Boolean).pop();
 
                     const findNext = (node) => {
-                        if(getUrlId(node.species.url) == p.id) {
-                            if(node.evolves_to.length > 0) {
+                        if (getUrlId(node.species.url) == p.id) {
+                            if (node.evolves_to.length > 0) {
                                 nextNextId = getUrlId(node.evolves_to[0].species.url);
                             }
                         } else {
@@ -178,9 +207,9 @@ const PokeDetail = {
                         }
                     };
                     findNext(chain);
-                    
+
                     p.nextId = nextNextId;
-                    
+
                     Game.save();
                     PokeDetail.render();
                     UI.toast(`Evolved!`, "#9C27B0");
@@ -188,7 +217,7 @@ const PokeDetail = {
                 })
                 .catch(() => {
                     p.name = "Evolved Form";
-                    p.nextId = null; 
+                    p.nextId = null;
                     Game.save();
                     PokeDetail.render();
                 });

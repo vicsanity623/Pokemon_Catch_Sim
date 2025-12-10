@@ -8,7 +8,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>Pokémon GO Clone v28</title>
+    <title>Pokémon GO Clone v29</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1243,7 +1243,7 @@
     </div>
 
     <div id="game-stage">
-        <div id="version-tag">v28.0</div>
+        <div id="version-tag">v29.0</div>
     </div>
 
     <!-- SCREENS -->
@@ -1462,19 +1462,65 @@
                         fetch(`https://pokeapi.co/api/v2/pokemon/${id}`).then(r => r.json()).then(pData => {
                             sprite.src = pData.sprites.other['official-artwork'].front_default || pData.sprites.front_default;
 
-                            // ASSIGN MOVES & HP
+                            // ASSIGN MOVES & HP WITH REAL MOVE DATA
                             const movesRaw = pData.moves;
-                            const moves = [];
                             if (movesRaw && movesRaw.length > 0) {
-                                for (let i = 0; i < 2; i++) {
-                                    const m = movesRaw[Math.floor(Math.random() * movesRaw.length)].move;
-                                    moves.push({ name: m.name, power: Math.floor(Math.random() * 40) + 20, type: 'normal' }); // Fallback power
+                                // Select 1-2 random moves
+                                const numMoves = Math.min(2, movesRaw.length);
+                                const selectedMoves = [];
+                                const usedIndices = new Set();
+
+                                while (selectedMoves.length < numMoves) {
+                                    const idx = Math.floor(Math.random() * movesRaw.length);
+                                    if (!usedIndices.has(idx)) {
+                                        usedIndices.add(idx);
+                                        selectedMoves.push(movesRaw[idx].move);
+                                    }
                                 }
+
+                                // Fetch move details for each selected move
+                                Promise.all(selectedMoves.map(move =>
+                                    fetch(move.url)
+                                        .then(r => r.json())
+                                        .catch(() => null)
+                                )).then(moveDetails => {
+                                    const moves = moveDetails.map(moveData => {
+                                        if (moveData) {
+                                            // Format move name
+                                            const formattedName = moveData.name
+                                                .split('-')
+                                                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                                                .join(' ');
+
+                                            // Get power (use 30 for status moves with no power)
+                                            const power = moveData.power || 30;
+
+                                            // Get type
+                                            const type = moveData.type ? moveData.type.name : 'normal';
+
+                                            return { name: formattedName, power: power, type: type };
+                                        } else {
+                                            // Fallback if API fails
+                                            return { name: 'Tackle', power: 40, type: 'normal' };
+                                        }
+                                    });
+
+                                    Game.state.mon.moves = moves;
+                                }).catch(() => {
+                                    // Complete fallback if all fails
+                                    Game.state.mon.moves = [
+                                        { name: 'Tackle', power: 40, type: 'normal' },
+                                        { name: 'Quick Attack', power: 40, type: 'normal' }
+                                    ];
+                                });
                             } else {
-                                moves.push({ name: 'Tackle', power: 20, type: 'normal' }, { name: 'Struggle', power: 35, type: 'normal' });
+                                // No moves available, use defaults
+                                Game.state.mon.moves = [
+                                    { name: 'Tackle', power: 40, type: 'normal' },
+                                    { name: 'Struggle', power: 50, type: 'normal' }
+                                ];
                             }
 
-                            Game.state.mon.moves = moves;
                             Game.state.mon.maxHp = Math.floor(cp / 10) + 50; // HP Formula
 
                             sprite.onload = () => { sprite.style.transform = 'scale(1)'; sprite.style.opacity = 1; };
