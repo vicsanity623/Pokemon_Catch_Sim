@@ -4,37 +4,44 @@ const Explore = {
     speed: 5,
     objects: [],
     frameId: null,
-    raidInterval: null, // Track interval to clear it properly
+    raidInterval: null,
     
     init: () => {
         if (document.getElementById('explore-screen').classList.contains('active')) {
-            Explore.generateMap();
+            // Only generate map if empty (first load)
+            if (Explore.objects.length === 0) Explore.generateMap();
             Explore.setupJoystick();
             Explore.startLoop();
         }
     },
 
     start: () => {
-        // Stop any lingering animations
+        // CLEANUP
         cancelAnimationFrame(Game.state.animationFrame); 
         
-        // UI Transition with Delay
-        setTimeout(() => {
-            document.getElementById('catch-screen').classList.remove('active');
-            document.getElementById('explore-screen').classList.add('active');
-            document.getElementById('result-overlay').classList.remove('visible');
-            document.getElementById('result-overlay').style.display = 'none';
+        // UI SWITCH
+        document.getElementById('catch-screen').classList.remove('active');
+        document.getElementById('explore-screen').classList.add('active');
+        document.getElementById('result-overlay').classList.remove('visible');
+        document.getElementById('result-overlay').style.display = 'none';
 
-            UI.updateHUD();
-            
-            // Re-initialize map loop if needed
-            if (Explore.objects.length === 0) Explore.init();
-            else Explore.startLoop();
-        }, 500);
+        UI.updateHUD();
+        
+        // RESET INPUTS (Fixes frozen joystick)
+        Explore.joystick.active = false;
+        Explore.joystick.dx = 0; 
+        Explore.joystick.dy = 0;
+        const knob = document.getElementById('joystick-knob');
+        if(knob) knob.style.transform = `translate(-50%, -50%)`;
+
+        // RESTART LOOP
+        if (Explore.objects.length === 0) Explore.init();
+        else Explore.startLoop();
     },
 
     startLoop: () => {
-        if (!Explore.frameId) Explore.frameId = requestAnimationFrame(Explore.update);
+        if (Explore.frameId) cancelAnimationFrame(Explore.frameId);
+        Explore.frameId = requestAnimationFrame(Explore.update);
     },
 
     generateMap: () => {
@@ -59,19 +66,17 @@ const Explore = {
                 objType = 'stop';
             } else {
                 el = document.createElement('div'); el.className = 'map-obj wild-spawn';
-                // Pick valid base ID for map visual
                 id = [1,4,7,25,133,16,19,43,69,60][Math.floor(Math.random()*10)]; 
-                // Random ID for actual spawn, but keep visual simple
                 const realId = Math.floor(Math.random() * 150) + 1;
                 el.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${realId}.png" width="50">`;
                 objType = 'wild';
-                id = realId; // Store for passing to catch screen
+                id = realId; 
             }
 
             el.style.left = x + 'px';
             el.style.top = y + 'px';
             map.appendChild(el);
-            Explore.objects.push({ x, y, type: objType, el, id });
+            Explore.objects.push({ x, y, type: objType, el, id, spun: false });
         }
     },
 
@@ -139,7 +144,6 @@ const Explore = {
             
             if (dist < 50) {
                 if (obj.type === 'wild') {
-                    // PASS THE ID CORRECTLY
                     Explore.triggerEncounter(obj.id);
                     obj.el.style.display = 'none';
                     obj.x = -9999; 
@@ -161,20 +165,45 @@ const Explore = {
         setTimeout(() => {
             document.getElementById('explore-screen').classList.remove('active');
             document.getElementById('catch-screen').classList.add('active');
-            Game.spawn(id); // Pass ID to spawn
-        }, 500); // 0.5s Delay
+            Game.spawn(id); 
+        }, 500);
     },
 
     spinStop: (obj) => {
-        if(obj.spun) return;
+        if(obj.spun) return; // Cooldown active
         obj.spun = true;
-        obj.el.style.background = "#E91E63";
-        UI.spawnFloatText("+ Items", window.innerWidth/2, window.innerHeight/2, "#2196F3");
-        Data.inventory['Poke Ball'] += 3;
-        Data.inventory['Razz Berry'] += 1;
+        
+        // Visual Change
+        obj.el.style.background = "#E91E63"; 
+        
+        // Rewards Logic
+        const balls = Math.floor(Math.random() * 3) + 2; // 2-5 Balls
+        const berries = Math.floor(Math.random() * 2) + 1; // 1-3 Berries
+        const xp = 100;
+        
+        Data.inventory['Poke Ball'] += balls;
+        Data.inventory['Razz Berry'] += berries;
+        Data.user.xp += xp;
+
+        // Level Up Check
+        if (Data.user.xp >= Data.user.nextLevelXp) setTimeout(Game.levelUp, 1000);
+        
         Game.save();
         UI.updateHUD();
-        setTimeout(() => { obj.spun = false; obj.el.style.background = "#2196F3"; }, 15000);
+
+        // Specific Floating Text
+        const cx = window.innerWidth/2;
+        const cy = window.innerHeight/2;
+        
+        UI.spawnFloatText(`+${balls} Poke Balls`, cx, cy - 50, "#2196F3");
+        setTimeout(() => UI.spawnFloatText(`+${berries} Razz Berries`, cx, cy, "#E91E63"), 300);
+        setTimeout(() => UI.spawnFloatText(`+${xp} XP`, cx, cy + 50, "#FFEB3B"), 600);
+
+        // 120 Second Cooldown
+        setTimeout(() => { 
+            obj.spun = false; 
+            obj.el.style.background = "#2196F3"; 
+        }, 120000); 
     },
 
     openGym: (obj) => {
@@ -231,7 +260,6 @@ const Explore = {
         Explore.closeGym();
     },
 
-    /* --- FIXED RAID LOGIC --- */
     currentRaidBossId: null,
 
     openRaid: (obj) => {
@@ -239,13 +267,11 @@ const Explore = {
         modal.style.display = 'flex';
         Explore.joystick.active = false;
 
-        // Generate Boss
         const bossId = [150, 144, 145, 146, 243, 244, 245, 384][Math.floor(Math.random()*8)];
         Explore.currentRaidBossId = bossId;
         
         document.getElementById('raid-boss-img').src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${bossId}.png`;
         
-        // Show Team Select Screen (Not auto-start)
         document.getElementById('battle-team').innerHTML = `
             <div style="text-align:center; width:100%;">
                 <p style="color:#666; font-size:14px;">Select your team to fight!</p>
@@ -254,9 +280,7 @@ const Explore = {
             </div>
         `;
         
-        // Populate Slots
         const slotsDiv = document.getElementById('raid-team-slots');
-        // Auto-fill top 3
         for(let i=0; i<3; i++) {
             if(Data.storage[i]) {
                 slotsDiv.innerHTML += `<div class="battle-mon"><img src="${ASSETS.poke + Data.storage[i].id + '.png'}"></div>`;
@@ -265,38 +289,42 @@ const Explore = {
             }
         }
         
-        // Reset HP Bar
         document.getElementById('raid-hp-fill').style.width = '100%';
     },
 
     startRaidBattle: () => {
-        // Change UI to fighting state
         document.getElementById('btn-start-raid').style.display = 'none';
         
         let hp = 100;
         const bar = document.getElementById('raid-hp-fill');
         
-        // Battle Loop
         Explore.raidInterval = setInterval(() => {
             if(document.getElementById('raid-modal').style.display === 'none') { 
                 clearInterval(Explore.raidInterval); 
                 return; 
             }
             
-            hp -= 15; // Damage calc
+            hp -= 15; 
             bar.style.width = hp + '%';
             
-            // Visual Shake
             const boss = document.getElementById('raid-boss-img');
             boss.classList.add('attack-anim');
             setTimeout(() => boss.classList.remove('attack-anim'), 200);
 
             if(hp <= 0) {
                 clearInterval(Explore.raidInterval);
+                
+                // WIN REWARD
+                UI.spawnFloatText("RAID WON! +1000 XP", window.innerWidth/2, window.innerHeight/2, "#FFC107");
+                Data.user.xp += 1000;
+                if (Data.user.xp >= Data.user.nextLevelXp) setTimeout(Game.levelUp, 1500);
+                Game.save();
+                UI.updateHUD();
+
                 setTimeout(() => {
                     document.getElementById('raid-modal').style.display = 'none';
-                    Explore.triggerEncounter(Explore.currentRaidBossId); // Pass boss ID
-                }, 1000);
+                    Explore.triggerEncounter(Explore.currentRaidBossId); 
+                }, 2000);
             }
         }, 1500);
     },
