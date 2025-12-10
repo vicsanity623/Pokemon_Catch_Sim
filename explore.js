@@ -49,35 +49,101 @@ const Explore = {
         map.innerHTML = '';
         Explore.objects = [];
 
-        for (let i = 0; i < 25; i++) {
-            const typeProb = Math.random();
-            let el, objType, id = null;
-            const x = Math.random() * 1800 + 100; 
-            const y = Math.random() * 1800 + 100;
+        // 1. Initialize Map Data if missing (First Run)
+        if (!Data.mapData || Data.mapData.length === 0) {
+            Data.mapData = [];
+            // Generate 25 Static Objects
+            for (let i = 0; i < 25; i++) {
+                const typeProb = Math.random();
+                let type, id = null;
+                // Random Circular Coords (Radius 900 safe zone)
+                const angle = Math.random() * Math.PI * 2;
+                const radius = Math.random() * 900; 
+                const x = 1000 + Math.cos(angle) * radius;
+                const y = 1000 + Math.sin(angle) * radius;
 
-            if (typeProb < 0.08) {
-                el = document.createElement('div'); el.className = 'map-obj gym';
-                el.innerHTML = `<div class="gym-dome"></div>`; objType = 'gym';
-            } else if (typeProb < 0.12) {
-                el = document.createElement('div'); el.className = 'map-obj raid';
-                el.innerHTML = `<div class="raid-timer">02:00</div>`; objType = 'raid';
-            } else if (typeProb < 0.4) {
-                el = document.createElement('div'); el.className = 'map-obj pokestop';
-                objType = 'stop';
-            } else {
-                el = document.createElement('div'); el.className = 'map-obj wild-spawn';
-                id = [1,4,7,25,133,16,19,43,69,60][Math.floor(Math.random()*10)]; 
-                const realId = Math.floor(Math.random() * 150) + 1;
-                el.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${realId}.png" width="50">`;
-                objType = 'wild';
-                id = realId; 
+                if (typeProb < 0.08) type = 'gym';
+                else if (typeProb < 0.12) type = 'raid';
+                else if (typeProb < 0.4) type = 'stop';
+                else {
+                    type = 'wild';
+                    // Store the visual ID for persistence
+                    id = Math.floor(Math.random() * 150) + 1; 
+                }
+                Data.mapData.push({ x, y, type, id });
+            }
+            Game.save(); // Save locations forever
+        }
+
+        // 2. Render from Saved Data
+        Data.mapData.forEach(obj => {
+            let el = document.createElement('div');
+            
+            if (obj.type === 'gym') {
+                el.className = 'map-obj gym';
+                el.innerHTML = `<div class="gym-dome"></div>`;
+            } else if (obj.type === 'raid') {
+                el.className = 'map-obj raid';
+                el.innerHTML = `<div class="raid-timer">02:00</div>`;
+            } else if (obj.type === 'stop') {
+                el.className = 'map-obj pokestop';
+            } else if (obj.type === 'wild') {
+                el.className = 'map-obj wild-spawn';
+                el.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${obj.id}.png" width="50">`;
             }
 
-            el.style.left = x + 'px';
-            el.style.top = y + 'px';
+            el.style.left = obj.x + 'px';
+            el.style.top = obj.y + 'px';
             map.appendChild(el);
-            Explore.objects.push({ x, y, type: objType, el, id, spun: false });
+            
+            // Add to active interaction list
+            Explore.objects.push({ ...obj, el, spun: false });
+        });
+    },
+
+    update: () => {
+        if (!document.getElementById('explore-screen').classList.contains('active')) return;
+
+        // Move Map
+        Explore.x -= Explore.joystick.dx * Explore.speed;
+        Explore.y -= Explore.joystick.dy * Explore.speed;
+
+        // BOUNDS CHECK (Circular 1000px Radius)
+        const dist = Math.sqrt(Explore.x**2 + Explore.y**2);
+        if (dist > 950) { // 950 buffer to keep player on grass
+            const angle = Math.atan2(Explore.y, Explore.x);
+            Explore.x = Math.cos(angle) * 950;
+            Explore.y = Math.sin(angle) * 950;
         }
+
+        document.getElementById('world-map').style.transform = `translate(calc(-50% + ${Explore.x}px), calc(-50% + ${Explore.y}px))`;
+
+        // Interaction Check
+        const px = 1000 - Explore.x;
+        const py = 1000 - Explore.y;
+
+        Explore.objects.forEach(obj => {
+            if (obj.x === -9999) return;
+            // Distance Check
+            const d = Math.sqrt(Math.pow(obj.x - px, 2) + Math.pow(obj.y - py, 2));
+            
+            if (d < 50) {
+                if (obj.type === 'wild') {
+                    // Pass the Saved ID to spawn
+                    Explore.triggerEncounter(obj.id);
+                    obj.el.style.display = 'none';
+                    obj.x = -9999; // Remove from collisions
+                } else if (obj.type === 'stop') {
+                    Explore.spinStop(obj);
+                } else if (obj.type === 'gym') {
+                    Explore.openGym(obj);
+                } else if (obj.type === 'raid') {
+                    Explore.openRaid(obj);
+                }
+            }
+        });
+
+        Explore.frameId = requestAnimationFrame(Explore.update);
     },
 
     joystick: { active: false, dx: 0, dy: 0, startX:0, startY:0 },
@@ -230,8 +296,11 @@ const Explore = {
         }
     },
     
-    closeGym: () => { document.getElementById('gym-modal').style.display = 'none'; },
-
+    closeGym: () => { 
+        document.getElementById('gym-modal').style.display = 'none'; 
+        // Reset joystick to prevent getting stuck
+        Explore.joystick.active = false;
+    },
     deployDefender: () => {
         if(Data.storage.length === 0) return;
         const p = Data.storage[0];
@@ -242,21 +311,36 @@ const Explore = {
     },
 
     recallDefender: () => {
+        // Validation
+        if (!Data.gymDefenders || Data.gymDefenders.length === 0) {
+            Explore.closeGym();
+            return;
+        }
+
         const def = Data.gymDefenders[0];
         const minutes = Math.floor((Date.now() - def.start) / 60000);
         const earned = Math.min(100, minutes);
         
+        // 1. Give Candy
+        if(!Data.candyBag) Data.candyBag = {};
         if(!Data.candyBag[def.family]) Data.candyBag[def.family] = 0;
         Data.candyBag[def.family] += earned;
         UI.spawnFloatText(`+${earned} ${def.family} Candy`, window.innerWidth/2, window.innerHeight/2, "#E91E63");
 
+        // 2. Return to Storage (Restore logic)
         Data.storage.unshift({
-            id: def.id, name: def.name, cp: Math.floor(Math.random()*2000)+100, 
-            family: def.family, date: new Date().toLocaleDateString()
+            id: def.id, 
+            name: def.name, 
+            cp: Math.floor(Math.random()*2000)+100, // Re-roll CP on return (simulated fatigue/rest)
+            family: def.family, 
+            date: new Date().toLocaleDateString()
         });
         
+        // 3. Clear Defender Slot
         Data.gymDefenders = [];
         Game.save();
+        
+        // 4. Close UI correctly
         Explore.closeGym();
     },
 
