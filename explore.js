@@ -358,17 +358,32 @@ const Explore = {
         }
         Explore.currentRaidBossId = obj.bossId;
         document.getElementById('raid-boss-img').src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${obj.bossId}.png`;
+
+        // RENDER TEAM WITH HP BARS
         document.getElementById('battle-team').innerHTML = `
             <div style="text-align:center; width:100%;">
                 <p style="color:#666; font-size:14px;">Select your team to fight!</p>
-                <div id="raid-team-slots" style="display:flex; justify-content:center; gap:10px; margin:10px 0;"></div>
+                <div id="raid-team-slots" style="display:flex; justify-content:center; gap:20px; margin:20px 0;"></div>
                 <button id="btn-start-raid" class="btn-action" style="background:#F44336; width:100%; justify-content:center;" onclick="Explore.startRaidBattle()">START BATTLE</button>
             </div>
         `;
+
         const slotsDiv = document.getElementById('raid-team-slots');
         for (let i = 0; i < 3; i++) {
-            if (Data.storage[i]) {
-                slotsDiv.innerHTML += `<div class="battle-mon"><img src="${ASSETS.poke + Data.storage[i].id + '.png'}"></div>`;
+            const mon = Data.storage[i];
+            if (mon) {
+                // Ensure Moves/HP exist (backwards compat)
+                if (!mon.moves) mon.moves = [{ name: 'Tackle', power: 20 }, { name: 'Struggle', power: 30 }];
+                if (!mon.maxHp) mon.maxHp = Math.floor(mon.cp / 10) + 50;
+
+                slotsDiv.innerHTML += `
+                    <div id="raid-slot-${i}" class="raid-slot" style="display:flex; flex-direction:column; align-items:center; width:60px;">
+                        <div class="battle-mon"><img src="${ASSETS.poke + mon.id + '.png'}"></div>
+                        <div style="background:#ddd; width:100%; height:8px; margin-top:5px; border-radius:4px; overflow:hidden;">
+                            <div id="hp-bar-${i}" style="width:100%; height:100%; background:#4CAF50; transition:width 0.2s"></div>
+                        </div>
+                        <div style="font-size:10px; font-weight:bold; overflow:hidden; white-space:nowrap; width:100%; text-align:center;">${mon.cp} CP</div>
+                    </div>`;
             } else {
                 slotsDiv.innerHTML += `<div class="battle-mon" style="background:#eee"></div>`;
             }
@@ -378,33 +393,101 @@ const Explore = {
 
     startRaidBattle: () => {
         document.getElementById('btn-start-raid').style.display = 'none';
-        let hp = 100;
-        const bar = document.getElementById('raid-hp-fill');
-        Explore.raidInterval = setInterval(() => {
-            if (document.getElementById('raid-modal').style.display === 'none') { clearInterval(Explore.raidInterval); return; }
-            hp -= 15;
-            bar.style.width = hp + '%';
-            const boss = document.getElementById('raid-boss-img');
-            boss.classList.add('attack-anim');
-            setTimeout(() => boss.classList.remove('attack-anim'), 200);
-            if (hp <= 0) {
-                clearInterval(Explore.raidInterval);
-                UI.spawnFloatText("RAID WON! +1000 XP", window.innerWidth / 2, window.innerHeight / 2, "#FFC107");
-                Data.user.xp += 1000;
-                if (Data.user.xp >= Data.user.nextLevelXp) setTimeout(Game.levelUp, 1500);
-                Game.save();
-                UI.updateHUD();
 
-                if (Explore.currentRaidObj) {
-                    Explore.currentRaidObj.cooldown = Date.now() + 120000;
+        // INIT BATTLE STATE
+        let bossHp = 5000; // Hardcoded boss HP
+        let maxBossHp = 5000;
+        let pokes = []; // { index, curHp, maxHp, moves, elId }
+
+        for (let i = 0; i < 3; i++) {
+            const m = Data.storage[i];
+            if (m) {
+                pokes.push({
+                    idx: i,
+                    // Use saved MaxHP or calc logic
+                    curHp: m.maxHp || Math.floor(m.cp / 10) + 50,
+                    maxHp: m.maxHp || Math.floor(m.cp / 10) + 50,
+                    moves: m.moves || [{ name: 'Attack', power: 20 }],
+                    name: m.name
+                });
+            }
+        }
+
+        Explore.raidInterval = setInterval(() => {
+            if (document.getElementById('raid-modal').style.display === 'none') {
+                clearInterval(Explore.raidInterval);
+                return;
+            }
+
+            // 1. PLAYERS ATTACK
+            pokes.forEach(p => {
+                if (p.curHp > 0) {
+                    // Pick Random Move
+                    const move = p.moves[Math.floor(Math.random() * p.moves.length)];
+                    const dmg = Math.floor(move.power + (Math.random() * 20));
+                    bossHp -= dmg;
+
+                    // Show Float Text on Boss
+                    const bossRect = document.getElementById('raid-boss-img').getBoundingClientRect();
+                    const jitterX = (Math.random() - 0.5) * 50;
+                    const jitterY = (Math.random() - 0.5) * 50;
+                    UI.spawnFloatText(`${move.name} ${dmg}`, bossRect.left + bossRect.width / 2 + jitterX, bossRect.top + jitterY, "#fff");
                 }
+            });
+
+            // Update Boss Bar
+            const pct = Math.max(0, (bossHp / maxBossHp) * 100);
+            document.getElementById('raid-hp-fill').style.width = pct + '%';
+
+            // Boss Anim
+            const bossImg = document.getElementById('raid-boss-img');
+            bossImg.classList.add('attack-anim');
+            setTimeout(() => bossImg.classList.remove('attack-anim'), 200);
+
+            // 2. BOSS ATTACKS ONE PLAYER
+            const alive = pokes.filter(p => p.curHp > 0);
+            if (alive.length > 0) {
+                const victim = alive[Math.floor(Math.random() * alive.length)];
+                const bossDmg = Math.floor(Math.random() * 40) + 30; // 30-70 dmg
+                victim.curHp -= bossDmg;
+
+                // Update Victim Bar
+                const vBar = document.getElementById(`hp-bar-${victim.idx}`);
+                const vPct = Math.max(0, (victim.curHp / victim.maxHp) * 100);
+                if (vBar) vBar.style.width = vPct + '%';
+
+                // Anim Victim Shake
+                const vSlot = document.getElementById(`raid-slot-${victim.idx}`);
+                if (vSlot) {
+                    vSlot.style.transform = 'translate(2px, 2px)';
+                    setTimeout(() => vSlot.style.transform = 'translate(0,0)', 100);
+                }
+            }
+
+            // 3. CHECK END CONDITIONS
+            if (bossHp <= 0) {
+                clearInterval(Explore.raidInterval);
+                // WIN
+                UI.spawnFloatText("RAID WON!", window.innerWidth / 2, window.innerHeight / 2, "#FFC107");
+
+                if (Explore.currentRaidObj) Explore.currentRaidObj.cooldown = Date.now() + 120000;
 
                 setTimeout(() => {
                     Explore.closeRaid();
+                    // TRIGGER CATCH
                     Explore.triggerEncounter(Explore.currentRaidBossId);
                 }, 2000);
+            } else if (alive.length === 0 && pokes.length > 0) { // Only if we actually had a team
+                clearInterval(Explore.raidInterval);
+                // LOSE
+                UI.spawnFloatText("TEAM FAINTED!", window.innerWidth / 2, window.innerHeight / 2, "red");
+                setTimeout(() => {
+                    Explore.closeRaid();
+                    // NO CATCH, JUST RETURN
+                }, 2000);
             }
-        }, 1500);
+
+        }, 1200); // Turn every 1.2s
     },
 
     closeRaid: () => {
