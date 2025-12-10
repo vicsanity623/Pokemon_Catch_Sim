@@ -5,10 +5,10 @@ const Explore = {
     objects: [],
     frameId: null,
     raidInterval: null,
-    
+    isInteracting: false,
+
     init: () => {
         if (document.getElementById('explore-screen').classList.contains('active')) {
-            // Only generate map if empty (first load)
             if (Explore.objects.length === 0) Explore.generateMap();
             Explore.setupJoystick();
             Explore.startLoop();
@@ -16,25 +16,19 @@ const Explore = {
     },
 
     start: () => {
-        // CLEANUP
-        cancelAnimationFrame(Game.state.animationFrame); 
-        
-        // UI SWITCH
+        cancelAnimationFrame(Game.state.animationFrame);
         document.getElementById('catch-screen').classList.remove('active');
         document.getElementById('explore-screen').classList.add('active');
         document.getElementById('result-overlay').classList.remove('visible');
         document.getElementById('result-overlay').style.display = 'none';
-
         UI.updateHUD();
-        
-        // RESET INPUTS (Fixes frozen joystick)
+
         Explore.joystick.active = false;
-        Explore.joystick.dx = 0; 
+        Explore.joystick.dx = 0;
         Explore.joystick.dy = 0;
         const knob = document.getElementById('joystick-knob');
-        if(knob) knob.style.transform = `translate(-50%, -50%)`;
+        if (knob) knob.style.transform = `translate(-50%, -50%)`;
 
-        // RESTART LOOP
         if (Explore.objects.length === 0) Explore.init();
         else Explore.startLoop();
     },
@@ -49,36 +43,69 @@ const Explore = {
         map.innerHTML = '';
         Explore.objects = [];
 
-        // 1. Initialize Map Data if missing (First Run)
-        if (!Data.mapData || Data.mapData.length === 0) {
-            Data.mapData = [];
-            // Generate 25 Static Objects
-            for (let i = 0; i < 25; i++) {
-                const typeProb = Math.random();
-                let type, id = null;
-                // Random Circular Coords (Radius 900 safe zone)
-                const angle = Math.random() * Math.PI * 2;
-                const radius = Math.random() * 900; 
-                const x = 1000 + Math.cos(angle) * radius;
-                const y = 1000 + Math.sin(angle) * radius;
+        const baseIds = [1, 4, 7, 10, 13, 16, 19, 21, 23, 25, 27, 29, 32, 35, 37, 39, 41, 43, 46, 48, 50, 52, 54, 56, 58, 60, 63, 66, 69, 72, 74, 77, 79, 81, 83, 84, 86, 88, 90, 92, 95, 96, 98, 100, 102, 104, 106, 108, 109, 111, 113, 114, 115, 116, 118, 120, 122, 123, 124, 125, 126, 127, 128, 129, 131, 132, 133, 137, 138, 140, 142, 143, 147];
 
-                if (typeProb < 0.08) type = 'gym';
-                else if (typeProb < 0.12) type = 'raid';
-                else if (typeProb < 0.4) type = 'stop';
-                else {
-                    type = 'wild';
-                    // Store the visual ID for persistence
-                    id = Math.floor(Math.random() * 150) + 1; 
+        let stops = Data.mapData ? Data.mapData.filter(o => o.type === 'stop') : [];
+        let gyms = Data.mapData ? Data.mapData.filter(o => o.type === 'gym') : [];
+        let raids = Data.mapData ? Data.mapData.filter(o => o.type === 'raid') : [];
+
+        const validCounts = stops.length === 5 && gyms.length === 3 && raids.length === 3;
+
+        if (!validCounts || Data.mapData.length === 0) {
+            Data.mapData = [];
+            const safeDistance = 200;
+            const poiBuffer = 150;
+            const objs = [];
+
+            const getRandomPos = () => {
+                const angle = Math.random() * Math.PI * 2;
+                const radius = (Math.random() * 800) + 200;
+                return { x: 1000 + Math.cos(angle) * radius, y: 1000 + Math.sin(angle) * radius };
+            };
+
+            const isTooClose = (p, list, buffer) => {
+                // Dist from Player Start (1000,1000 is center of map div which is 2000x2000)
+                const distCenter = Math.sqrt(Math.pow(p.x - 1000, 2) + Math.pow(p.y - 1000, 2));
+                if (distCenter < safeDistance) return true;
+
+                for (let o of list) {
+                    const d = Math.sqrt(Math.pow(p.x - o.x, 2) + Math.pow(p.y - o.y, 2));
+                    if (d < buffer) return true;
                 }
-                Data.mapData.push({ x, y, type, id });
+                return false;
+            };
+
+            const addObjects = (count, type) => {
+                for (let i = 0; i < count; i++) {
+                    let p, tries = 0;
+                    do {
+                        p = getRandomPos();
+                        tries++;
+                    } while (isTooClose(p, objs, poiBuffer) && tries < 100);
+                    objs.push({ x: p.x, y: p.y, type: type, id: null });
+                }
+            };
+
+            addObjects(5, 'stop');
+            addObjects(3, 'gym');
+            addObjects(3, 'raid');
+
+            for (let i = 0; i < 15; i++) {
+                let p, tries = 0;
+                do {
+                    p = getRandomPos();
+                    tries++;
+                } while (isTooClose(p, objs, 100) && tries < 100);
+                const id = baseIds[Math.floor(Math.random() * baseIds.length)];
+                objs.push({ x: p.x, y: p.y, type: 'wild', id: id });
             }
-            Game.save(); // Save locations forever
+
+            Data.mapData = objs;
+            Game.save();
         }
 
-        // 2. Render from Saved Data
         Data.mapData.forEach(obj => {
             let el = document.createElement('div');
-            
             if (obj.type === 'gym') {
                 el.className = 'map-obj gym';
                 el.innerHTML = `<div class="gym-dome"></div>`;
@@ -91,12 +118,9 @@ const Explore = {
                 el.className = 'map-obj wild-spawn';
                 el.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${obj.id}.png" width="50">`;
             }
-
             el.style.left = obj.x + 'px';
             el.style.top = obj.y + 'px';
             map.appendChild(el);
-            
-            // Add to active interaction list
             Explore.objects.push({ ...obj, el, spun: false });
         });
     },
@@ -104,54 +128,44 @@ const Explore = {
     update: () => {
         if (!document.getElementById('explore-screen').classList.contains('active')) return;
 
-        // Move Map
-        Explore.x -= Explore.joystick.dx * Explore.speed;
-        Explore.y -= Explore.joystick.dy * Explore.speed;
+        if (!Explore.isInteracting) {
+            Explore.x -= Explore.joystick.dx * Explore.speed;
+            Explore.y -= Explore.joystick.dy * Explore.speed;
+            Explore.x = Math.max(-900, Math.min(900, Explore.x));
+            Explore.y = Math.max(-900, Math.min(900, Explore.y));
 
-        // BOUNDS CHECK (Circular 1000px Radius)
-        const dist = Math.sqrt(Explore.x**2 + Explore.y**2);
-        if (dist > 950) { // 950 buffer to keep player on grass
-            const angle = Math.atan2(Explore.y, Explore.x);
-            Explore.x = Math.cos(angle) * 950;
-            Explore.y = Math.sin(angle) * 950;
-        }
+            document.getElementById('world-map').style.transform = `translate(calc(-50% + ${Explore.x}px), calc(-50% + ${Explore.y}px))`;
 
-        document.getElementById('world-map').style.transform = `translate(calc(-50% + ${Explore.x}px), calc(-50% + ${Explore.y}px))`;
+            const px = 1000 - Explore.x;
+            const py = 1000 - Explore.y;
 
-        // Interaction Check
-        const px = 1000 - Explore.x;
-        const py = 1000 - Explore.y;
+            Explore.objects.forEach(obj => {
+                if (obj.x === -9999) return;
+                const dist = Math.sqrt(Math.pow(obj.x - px, 2) + Math.pow(obj.y - py, 2));
 
-        Explore.objects.forEach(obj => {
-            if (obj.x === -9999) return;
-            // Distance Check
-            const d = Math.sqrt(Math.pow(obj.x - px, 2) + Math.pow(obj.y - py, 2));
-            
-            if (d < 50) {
-                if (obj.type === 'wild') {
-                    // Pass the Saved ID to spawn
-                    Explore.triggerEncounter(obj.id);
-                    obj.el.style.display = 'none';
-                    obj.x = -9999; // Remove from collisions
-                } else if (obj.type === 'stop') {
-                    Explore.spinStop(obj);
-                } else if (obj.type === 'gym') {
-                    Explore.openGym(obj);
-                } else if (obj.type === 'raid') {
-                    Explore.openRaid(obj);
+                if (dist < 50) {
+                    if (obj.type === 'wild') {
+                        Explore.triggerEncounter(obj.id);
+                        obj.el.style.display = 'none';
+                        obj.x = -9999;
+                    } else if (obj.type === 'stop') {
+                        Explore.spinStop(obj);
+                    } else if (obj.type === 'gym') {
+                        Explore.openGym(obj);
+                    } else if (obj.type === 'raid') {
+                        Explore.openRaid(obj);
+                    }
                 }
-            }
-        });
-
+            });
+        }
         Explore.frameId = requestAnimationFrame(Explore.update);
     },
 
-    joystick: { active: false, dx: 0, dy: 0, startX:0, startY:0 },
-    
+    joystick: { active: false, dx: 0, dy: 0, startX: 0, startY: 0 },
+
     setupJoystick: () => {
         const zone = document.getElementById('joystick-zone');
         const knob = document.getElementById('joystick-knob');
-        
         const start = (e) => {
             e.preventDefault();
             const p = e.touches ? e.touches[0] : e;
@@ -167,7 +181,7 @@ const Explore = {
             const maxDist = 35;
             let dx = p.clientX - Explore.joystick.startX;
             let dy = p.clientY - Explore.joystick.startY;
-            const dist = Math.sqrt(dx*dx + dy*dy);
+            const dist = Math.sqrt(dx * dx + dy * dy);
             if (dist > maxDist) {
                 const ratio = maxDist / dist;
                 dx *= ratio; dy *= ratio;
@@ -182,107 +196,84 @@ const Explore = {
             knob.style.transition = 'transform 0.2s';
             knob.style.transform = `translate(-50%, -50%)`;
         };
-
-        zone.addEventListener('touchstart', start, {passive:false});
-        window.addEventListener('touchmove', move, {passive:false});
+        zone.addEventListener('touchstart', start, { passive: false });
+        window.addEventListener('touchmove', move, { passive: false });
         window.addEventListener('touchend', end);
         zone.addEventListener('mousedown', start);
         window.addEventListener('mousemove', move);
         window.addEventListener('mouseup', end);
     },
 
-    update: () => {
-        if (!document.getElementById('explore-screen').classList.contains('active')) return;
-
-        Explore.x -= Explore.joystick.dx * Explore.speed;
-        Explore.y -= Explore.joystick.dy * Explore.speed;
-        Explore.x = Math.max(-900, Math.min(900, Explore.x));
-        Explore.y = Math.max(-900, Math.min(900, Explore.y));
-
-        document.getElementById('world-map').style.transform = `translate(calc(-50% + ${Explore.x}px), calc(-50% + ${Explore.y}px))`;
-
-        const px = 1000 - Explore.x;
-        const py = 1000 - Explore.y;
-
-        Explore.objects.forEach(obj => {
-            if (obj.x === -9999) return;
-            const dist = Math.sqrt(Math.pow(obj.x - px, 2) + Math.pow(obj.y - py, 2));
-            
-            if (dist < 50) {
-                if (obj.type === 'wild') {
-                    Explore.triggerEncounter(obj.id);
-                    obj.el.style.display = 'none';
-                    obj.x = -9999; 
-                } else if (obj.type === 'stop') {
-                    Explore.spinStop(obj);
-                } else if (obj.type === 'gym') {
-                    Explore.openGym(obj);
-                } else if (obj.type === 'raid') {
-                    Explore.openRaid(obj);
-                }
-            }
-        });
-
-        Explore.frameId = requestAnimationFrame(Explore.update);
-    },
-
     triggerEncounter: (id) => {
         cancelAnimationFrame(Explore.frameId);
+        Explore.isInteracting = true;
         setTimeout(() => {
             document.getElementById('explore-screen').classList.remove('active');
             document.getElementById('catch-screen').classList.add('active');
-            Game.spawn(id); 
+            Game.spawn(id);
+            Explore.isInteracting = false;
         }, 500);
     },
 
     spinStop: (obj) => {
-        if(obj.spun) return; // Cooldown active
+        if (obj.spun || Explore.isInteracting) return;
+        Explore.isInteracting = true;
         obj.spun = true;
-        
-        // Visual Change
-        obj.el.style.background = "#E91E63"; 
-        
-        // Rewards Logic
-        const balls = Math.floor(Math.random() * 3) + 2; // 2-5 Balls
-        const berries = Math.floor(Math.random() * 2) + 1; // 1-3 Berries
+        obj.el.style.background = "#E91E63";
+
+        const balls = Math.floor(Math.random() * 3) + 2;
+        const berries = Math.floor(Math.random() * 2) + 1;
         const xp = 100;
-        
+
         Data.inventory['Poke Ball'] += balls;
         Data.inventory['Razz Berry'] += berries;
         Data.user.xp += xp;
 
-        // Level Up Check
         if (Data.user.xp >= Data.user.nextLevelXp) setTimeout(Game.levelUp, 1000);
-        
         Game.save();
         UI.updateHUD();
 
-        // Specific Floating Text
-        const cx = window.innerWidth/2;
-        const cy = window.innerHeight/2;
-        
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
         UI.spawnFloatText(`+${balls} Poke Balls`, cx, cy - 50, "#2196F3");
         setTimeout(() => UI.spawnFloatText(`+${berries} Razz Berries`, cx, cy, "#E91E63"), 300);
         setTimeout(() => UI.spawnFloatText(`+${xp} XP`, cx, cy + 50, "#FFEB3B"), 600);
 
-        // 120 Second Cooldown
-        setTimeout(() => { 
-            obj.spun = false; 
-            obj.el.style.background = "#2196F3"; 
-        }, 120000); 
+        // UNLOCK PLAYER AFTER SHORT DELAY (FIX)
+        setTimeout(() => { Explore.isInteracting = false; }, 1000);
+
+        // RESET STOP COOLDOWN
+        setTimeout(() => {
+            obj.spun = false;
+            obj.el.style.background = "#2196F3";
+        }, 120000);
     },
 
+    currentGymObj: null, // Track active gym
+
     openGym: (obj) => {
+        if (Explore.isInteracting) return;
+
+        // Check Cooldown
+        if (obj.cooldown && Date.now() < obj.cooldown) {
+            const timeLeft = Math.ceil((obj.cooldown - Date.now()) / 1000);
+            UI.spawnFloatText(`Gym Cooldown: ${timeLeft}s`, window.innerWidth / 2, window.innerHeight / 2, "#E91E63");
+            return;
+        }
+
+        Explore.isInteracting = true;
+        Explore.currentGymObj = obj;
+
         const modal = document.getElementById('gym-modal');
         modal.style.display = 'flex';
         Explore.joystick.active = false;
-        
+
         const slot = document.getElementById('gym-defender-slot');
         if (Data.gymDefenders && Data.gymDefenders.length > 0) {
             const def = Data.gymDefenders[0];
             const minutes = Math.floor((Date.now() - def.start) / 60000);
             const candyEarned = Math.min(100, minutes);
-            
+
             slot.innerHTML = `
                 <img src="${ASSETS.poke + def.id + '.png'}" width="80" style="display:block; margin:0 auto;">
                 <div style="font-weight:bold; font-size:18px;">${def.name}</div>
@@ -295,67 +286,78 @@ const Explore = {
             document.getElementById('btn-deploy').style.display = 'flex';
         }
     },
-    
-    closeGym: () => { 
-        document.getElementById('gym-modal').style.display = 'none'; 
-        // Reset joystick to prevent getting stuck
+
+    closeGym: () => {
+        document.getElementById('gym-modal').style.display = 'none';
         Explore.joystick.active = false;
+        Explore.isInteracting = false;
+        Explore.x += 10;
+
+        // Set 60s cooldown
+        if (Explore.currentGymObj) {
+            Explore.currentGymObj.cooldown = Date.now() + 60000;
+        }
     },
+
     deployDefender: () => {
-        if(Data.storage.length === 0) return;
-        const p = Data.storage[0];
-        Data.gymDefenders = [{ id: p.id, name: p.name, start: Date.now(), family: p.family }];
-        Data.storage.splice(0, 1); 
-        Game.save();
-        Explore.openGym();
+        UI.openStorage(true, (index) => {
+            const p = Data.storage[index];
+            if (!p) { UI.closeStorage(); return; }
+            Data.gymDefenders = [{ id: p.id, name: p.name, start: Date.now(), family: p.family }];
+            Data.storage.splice(index, 1);
+            Game.save();
+            UI.closeStorage();
+            Explore.openGym();
+        });
     },
 
     recallDefender: () => {
-        // Validation
-        if (!Data.gymDefenders || Data.gymDefenders.length === 0) {
-            Explore.closeGym();
-            return;
-        }
-
+        if (!Data.gymDefenders || Data.gymDefenders.length === 0) { Explore.closeGym(); return; }
         const def = Data.gymDefenders[0];
-        const minutes = Math.floor((Date.now() - def.start) / 60000);
+        const start = def.start || Date.now();
+        const minutes = Math.floor((Date.now() - start) / 60000);
         const earned = Math.min(100, minutes);
-        
-        // 1. Give Candy
-        if(!Data.candyBag) Data.candyBag = {};
-        if(!Data.candyBag[def.family]) Data.candyBag[def.family] = 0;
+        if (!Data.candyBag) Data.candyBag = {};
+        if (!Data.candyBag[def.family]) Data.candyBag[def.family] = 0;
         Data.candyBag[def.family] += earned;
-        UI.spawnFloatText(`+${earned} ${def.family} Candy`, window.innerWidth/2, window.innerHeight/2, "#E91E63");
-
-        // 2. Return to Storage (Restore logic)
+        UI.spawnFloatText(`+${earned} ${def.family} Candy`, window.innerWidth / 2, window.innerHeight / 2, "#E91E63");
         Data.storage.unshift({
-            id: def.id, 
-            name: def.name, 
-            cp: Math.floor(Math.random()*2000)+100, // Re-roll CP on return (simulated fatigue/rest)
-            family: def.family, 
+            id: def.id,
+            name: def.name,
+            cp: Math.floor(Math.random() * 2000) + 100,
+            family: def.family,
             date: new Date().toLocaleDateString()
         });
-        
-        // 3. Clear Defender Slot
         Data.gymDefenders = [];
         Game.save();
-        
-        // 4. Close UI correctly
         Explore.closeGym();
     },
 
     currentRaidBossId: null,
+    currentRaidObj: null,
 
     openRaid: (obj) => {
+        if (Explore.isInteracting) return;
+        if (obj.cooldown && Date.now() < obj.cooldown) {
+            const timeLeft = Math.ceil((obj.cooldown - Date.now()) / 1000);
+            UI.spawnFloatText(`Raid Cooldown: ${timeLeft}s`, window.innerWidth / 2, window.innerHeight / 2, "red");
+            return;
+        }
+
+        Explore.isInteracting = true;
+        Explore.currentRaidObj = obj;
         const modal = document.getElementById('raid-modal');
         modal.style.display = 'flex';
         Explore.joystick.active = false;
 
-        const bossId = [150, 144, 145, 146, 243, 244, 245, 384][Math.floor(Math.random()*8)];
-        Explore.currentRaidBossId = bossId;
-        
-        document.getElementById('raid-boss-img').src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${bossId}.png`;
-        
+        if (!obj.bossId) {
+            obj.bossId = [150, 144, 145, 146, 243, 244, 245, 384][Math.floor(Math.random() * 8)];
+            const mapObj = Data.mapData.find(item => item.x === obj.x && item.y === obj.y && item.type === obj.type);
+            if (mapObj) mapObj.bossId = obj.bossId;
+            Game.save();
+        }
+        Explore.currentRaidBossId = obj.bossId;
+        document.getElementById('raid-boss-img').src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${obj.bossId}.png`;
         document.getElementById('battle-team').innerHTML = `
             <div style="text-align:center; width:100%;">
                 <p style="color:#666; font-size:14px;">Select your team to fight!</p>
@@ -363,58 +365,53 @@ const Explore = {
                 <button id="btn-start-raid" class="btn-action" style="background:#F44336; width:100%; justify-content:center;" onclick="Explore.startRaidBattle()">START BATTLE</button>
             </div>
         `;
-        
         const slotsDiv = document.getElementById('raid-team-slots');
-        for(let i=0; i<3; i++) {
-            if(Data.storage[i]) {
+        for (let i = 0; i < 3; i++) {
+            if (Data.storage[i]) {
                 slotsDiv.innerHTML += `<div class="battle-mon"><img src="${ASSETS.poke + Data.storage[i].id + '.png'}"></div>`;
             } else {
                 slotsDiv.innerHTML += `<div class="battle-mon" style="background:#eee"></div>`;
             }
         }
-        
         document.getElementById('raid-hp-fill').style.width = '100%';
     },
 
     startRaidBattle: () => {
         document.getElementById('btn-start-raid').style.display = 'none';
-        
         let hp = 100;
         const bar = document.getElementById('raid-hp-fill');
-        
         Explore.raidInterval = setInterval(() => {
-            if(document.getElementById('raid-modal').style.display === 'none') { 
-                clearInterval(Explore.raidInterval); 
-                return; 
-            }
-            
-            hp -= 15; 
+            if (document.getElementById('raid-modal').style.display === 'none') { clearInterval(Explore.raidInterval); return; }
+            hp -= 15;
             bar.style.width = hp + '%';
-            
             const boss = document.getElementById('raid-boss-img');
             boss.classList.add('attack-anim');
             setTimeout(() => boss.classList.remove('attack-anim'), 200);
-
-            if(hp <= 0) {
+            if (hp <= 0) {
                 clearInterval(Explore.raidInterval);
-                
-                // WIN REWARD
-                UI.spawnFloatText("RAID WON! +1000 XP", window.innerWidth/2, window.innerHeight/2, "#FFC107");
+                UI.spawnFloatText("RAID WON! +1000 XP", window.innerWidth / 2, window.innerHeight / 2, "#FFC107");
                 Data.user.xp += 1000;
                 if (Data.user.xp >= Data.user.nextLevelXp) setTimeout(Game.levelUp, 1500);
                 Game.save();
                 UI.updateHUD();
 
+                if (Explore.currentRaidObj) {
+                    Explore.currentRaidObj.cooldown = Date.now() + 120000;
+                }
+
                 setTimeout(() => {
-                    document.getElementById('raid-modal').style.display = 'none';
-                    Explore.triggerEncounter(Explore.currentRaidBossId); 
+                    Explore.closeRaid();
+                    Explore.triggerEncounter(Explore.currentRaidBossId);
                 }, 2000);
             }
         }, 1500);
     },
-    
-    closeRaid: () => { 
+
+    closeRaid: () => {
         clearInterval(Explore.raidInterval);
-        document.getElementById('raid-modal').style.display = 'none'; 
+        document.getElementById('raid-modal').style.display = 'none';
+        Explore.joystick.active = false;
+        Explore.isInteracting = false;
+        Explore.x += 10;
     }
 };
