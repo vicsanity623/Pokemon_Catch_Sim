@@ -296,6 +296,76 @@
         .catch-flash { animation: catchFlash 0.5s; }
         @keyframes catchFlash { 0% {filter: brightness(1);} 50% {filter: brightness(5) sepia(1) hue-rotate(-50deg);} }
 
+        /* --- POKEMON DETAIL SCREEN (pokemon.js) --- */
+        #pokemon-detail-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%); /* Grass Type feel */
+            z-index: 700;
+            display: flex; flex-direction: column;
+            transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+            overflow-y: auto; pointer-events: auto;
+        }
+        #pokemon-detail-screen.active { transform: translateY(0); }
+
+        .pd-header { padding: 40px 20px 10px; text-align: center; }
+        .pd-cp-label { font-size: 18px; color: white; font-weight: bold; }
+        .pd-cp-val { font-size: 40px; }
+
+        .pd-hero { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; min-height: 250px; }
+        .pd-sprite { width: 200px; height: 200px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3)); z-index: 2; }
+        .evolve-flash { animation: catchFlash 1s; }
+
+        .pd-info-card {
+            background: white; border-radius: 20px 20px 0 0;
+            padding: 20px; min-height: 40%;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+            color: #333;
+        }
+
+        .pd-name-row { text-align: center; margin-bottom: 10px; }
+        .pd-name { font-size: 28px; font-weight: 500; color: #444; }
+        .pd-pencil { color: #aaa; margin-left: 10px; font-style: normal; cursor: pointer; }
+
+        .pd-hp-bar { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin: 10px 0; overflow: hidden; }
+        .pd-hp-fill { height: 100%; background: #4CAF50; }
+        .pd-hp-text { text-align: center; font-size: 14px; color: #666; font-weight: bold; margin-bottom: 20px; }
+
+        .pd-stats-row { display: flex; justify-content: space-around; padding-bottom: 20px; border-bottom: 1px solid #eee; }
+        .pd-stat { display: flex; flex-direction: column; align-items: center; }
+        .pd-stat-val { font-size: 18px; font-weight: bold; color: #333; }
+        .pd-stat-label { font-size: 12px; color: #888; margin-top: 4px; }
+
+        .pd-resources { display: flex; justify-content: space-around; margin: 20px 0; }
+        .pd-res { display: flex; flex-direction: column; align-items: center; }
+        .pd-res span { font-weight: bold; font-size: 16px; color: #333; }
+        .pd-res-label { font-size: 11px; color: #888; margin-top: 4px; letter-spacing: 1px; }
+        .pd-dust-icon { width: 10px; height: 10px; background: #9C27B0; border-radius: 50%; display:inline-block; margin-bottom: 5px; }
+        .pd-candy-icon { width: 10px; height: 10px; background: orange; border-radius: 50%; display:inline-block; margin-bottom: 5px; }
+
+        .pd-action-btn {
+            background: #E0E0E0; border-radius: 40px;
+            padding: 12px 20px; margin-bottom: 15px;
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; position: relative; overflow: hidden;
+        }
+        .pd-action-btn::before { content:''; position:absolute; left:0; top:0; height:100%; width: 30%; background: #4CAF50; border-radius: 40px 0 0 40px; z-index: 0; }
+        .pd-evolve-btn::before { background: linear-gradient(90deg, #2196F3, #21CBF3); }
+        
+        .pd-btn-left { z-index: 1; color: white; font-weight: bold; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.2); padding-left: 10px; }
+        .pd-btn-right { z-index: 1; display: flex; gap: 15px; }
+        
+        .pd-cost-item { display: flex; align-items: center; font-size: 14px; font-weight: bold; color: #333; }
+        .pd-dust-tiny { width: 8px; height: 8px; background: #9C27B0; border-radius: 50%; margin-right: 5px; }
+        .pd-candy-tiny { width: 8px; height: 8px; background: orange; border-radius: 50%; margin-right: 5px; }
+
+        .pd-close-fab {
+            position: absolute; bottom: 30px; right: 50%; transform: translateX(50%);
+            width: 50px; height: 50px; border-radius: 50%;
+            background: rgba(0,0,0,0.1); border: 2px solid #888;
+            color: #555; font-size: 24px; display: flex; justify-content: center; align-items: center;
+            cursor: pointer;
+        }
+
     </style>
     
     <script>
@@ -420,6 +490,9 @@
     </div>
 </div>
 
+<!-- POKEMON DETAIL CONTAINER -->
+<div id="pokemon-detail-screen"></div>
+
 <script>
     /* --- ASSETS & CONFIG --- */
     const ASSETS = {
@@ -432,9 +505,10 @@
     
     // Default State
     let Data = {
-        user: { level: 1, xp: 0, nextLevelXp: 1000 },
+        user: { level: 1, xp: 0, nextLevelXp: 1000, candy: 0 },
         inventory: {
             'Poke Ball': 50, 'Great Ball': 10, 'Ultra Ball': 5, 'Master Ball': 1,
+            'Stardust': 500, // Starting Stardust
             'Razz Berry': 10, 'Nanab Berry': 10, 'Pinap Berry': 10
         },
         storage: []
@@ -455,7 +529,8 @@
         mons: [
             {id:25, n:'Pikachu'}, {id:1, n:'Bulbasaur'}, {id:4, n:'Charmander'},
             {id:7, n:'Squirtle'}, {id:133, n:'Eevee'}, {id:143, n:'Snorlax'},
-            {id:150, n:'Mewtwo'}, {id:94, n:'Gengar'}, {id:6, n:'Charizard'}
+            {id:150, n:'Mewtwo'}, {id:94, n:'Gengar'}, {id:6, n:'Charizard'},
+            {id:92, n:'Gastly'}, {id:93, n:'Haunter'}
         ]
     };
 
@@ -472,6 +547,10 @@
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) Data = JSON.parse(saved);
             
+            // Ensure Stardust/Candy init for old saves
+            if (!Data.inventory['Stardust']) Data.inventory['Stardust'] = 500;
+            if (!Data.user.candy) Data.user.candy = 0;
+
             UI.updateHUD();
             Game.spawn();
             
@@ -673,6 +752,9 @@
 
             // Update User Stats
             Data.user.xp += xp;
+            Data.inventory['Stardust'] += 100; // Base dust
+            Data.user.candy += candy;
+
             if (Data.user.xp >= Data.user.nextLevelXp) {
                 setTimeout(Game.levelUp, 1000);
             } else {
@@ -698,7 +780,7 @@
             for(let i=0; i<5; i++) {
                 const keys = Object.keys(Data.inventory);
                 const item = keys[Math.floor(Math.random()*keys.length)];
-                if(item === 'Master Ball') continue; // Too rare
+                if(item === 'Master Ball' || item === 'Stardust') continue; 
                 Data.inventory[item] += 5;
                 rewards.push(item);
             }
@@ -823,6 +905,7 @@
             const list = document.getElementById('drawer-list'); list.innerHTML = '';
             document.getElementById('drawer-title').innerText = "SELECT " + type.toUpperCase();
             for(let key in Data.inventory) {
+                if (key === 'Stardust') continue; // Don't show stardust in item menu
                 if ( (type==='ball' && !Meta.balls[key]) || (type==='berry' && !Meta.berries[key]) ) continue;
                 const img = type === 'ball' ? Meta.balls[key].img : Meta.berries[key].img;
                 const row = document.createElement('div'); row.className = 'drawer-item';
@@ -852,9 +935,10 @@
         },
         openStorage: () => {
             const grid = document.getElementById('storage-grid'); grid.innerHTML = '';
-            // Sort by Newest
-            Data.storage.forEach(p => {
+            // CORRECTED LOGIC:
+            Data.storage.forEach((p, index) => {
                 const card = document.createElement('div'); card.className = 'storage-card';
+                card.onclick = () => PokeDetail.open(index); // CALLS THE NEW POKEMON.JS LOGIC
                 card.innerHTML = `<div class="card-cp">CP ${p.cp}</div><img class="card-img" src="${ASSETS.poke + p.id + '.png'}"><div class="card-name">${p.name}</div><div class="card-date">${p.date}</div>`;
                 grid.appendChild(card);
             });
@@ -862,11 +946,17 @@
         },
         closeStorage: () => {
             document.getElementById('storage-screen').style.display = 'none';
+            // Only go next if we are in result flow, otherwise just close.
+            // Simplified: Always go next for now.
             Game.nextPokemon();
         }
     };
 
     window.onload = Game.init;
 </script>
+
+<!-- LOAD NEW LOGIC -->
+<script src="pokemon.js"></script>
+
 </body>
 </html>
