@@ -4,12 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- FORCE NO-CACHE -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <title>Pokémon Catch Sim v12</title>
+    <title>Pokémon Catch Sim v13</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -32,7 +31,7 @@
             perspective: 900px;
         }
 
-        /* --- PLAYER HUD (TOP CENTER) --- */
+        /* --- PLAYER HUD --- */
         #player-hud {
             position: absolute; top: 15px; left: 50%;
             transform: translateX(-50%);
@@ -40,7 +39,6 @@
             display: flex; align-items: center;
             z-index: 400; pointer-events: none;
         }
-
         #avatar-bubble {
             width: 50px; height: 50px;
             background: white; border-radius: 50%;
@@ -50,23 +48,17 @@
             overflow: hidden;
         }
         #avatar-bubble img { width: 100%; }
-
         #xp-bar-container {
             flex: 1; height: 12px;
             background: rgba(0,0,0,0.5);
             border-radius: 0 10px 10px 0;
-            margin-left: -25px; /* Tuck behind avatar */
-            padding-left: 30px; /* Space for text */
-            position: relative;
-            overflow: hidden;
+            margin-left: -25px; padding-left: 30px; position: relative; overflow: hidden;
         }
-
         #xp-fill {
             height: 100%; width: 0%;
             background: #00E5FF;
             transition: width 0.5s ease-out;
         }
-
         #level-indicator {
             position: absolute; bottom: -5px; left: 0;
             background: #4CAF50; color: white;
@@ -87,7 +79,6 @@
             z-index: 10; pointer-events: none;
             will-change: transform;
         }
-
         #pokemon-sprite {
             width: 300px; height: 300px;
             object-fit: contain;
@@ -96,7 +87,6 @@
             transition: transform 0.2s, opacity 0.2s;
         }
         @keyframes idleHover { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-15px)} }
-
         #cp-tag {
             background: rgba(255, 255, 255, 0.95);
             padding: 6px 16px; border-radius: 16px;
@@ -105,143 +95,85 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.2);
         }
 
-        /* --- TARGET RINGS --- */
+        /* --- RINGS & BALL --- */
         #ring-container {
             position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -25%); 
-            width: 220px; height: 220px;
+            transform: translate(-50%, -25%); width: 220px; height: 220px;
             display: flex; justify-content: center; align-items: center;
         }
         .ring { position: absolute; border-radius: 50%; box-sizing: border-box; }
         #ring-outer { width: 100%; height: 100%; border: 4px solid rgba(255,255,255,0.7); }
-        #ring-target { 
-            width: 100%; height: 100%; 
-            border: 4px solid #ff0000; 
-            animation: shrinkRing 1.8s linear infinite; 
-        }
+        #ring-target { width: 100%; height: 100%; border: 4px solid #ff0000; animation: shrinkRing 1.8s linear infinite; }
         @keyframes shrinkRing { 0% { transform: scale(1); opacity:1; } 100% { transform: scale(0); opacity:1; } }
 
-        /* --- POKEBALL --- */
         #ball-container {
-            position: absolute;
-            width: 90px; height: 90px;
+            position: absolute; width: 90px; height: 90px;
             left: 50%; bottom: 10%;
-            transform: translate3d(-50%, 0, 0);
-            z-index: 100;
+            transform: translate3d(-50%, 0, 0); z-index: 100;
             will-change: transform, top, left;
         }
-
         #ball-sprite {
             width: 100%; height: 100%;
             background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png');
-            background-size: contain; background-repeat: no-repeat;
-            border-radius: 50%;
+            background-size: contain; background-repeat: no-repeat; border-radius: 50%;
         }
-        
         .sparkle {
             position: absolute; width: 10px; height: 10px;
-            background: #FFF700; border-radius: 50%;
-            pointer-events: none; opacity: 0;
-            box-shadow: 0 0 8px #FFF700;
+            background: #FFF700; border-radius: 50%; pointer-events: none; opacity: 0; box-shadow: 0 0 8px #FFF700;
         }
 
         /* --- UI OVERLAY --- */
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; z-index: 200;
-        }
-
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 200; }
+        
         .ui-btn {
-            position: absolute; bottom: 30px;
-            width: 60px; height: 60px;
-            background: rgba(255,255,255,0.95);
-            border-radius: 50%;
+            position: absolute; bottom: 30px; width: 60px; height: 60px;
+            background: rgba(255,255,255,0.95); border-radius: 50%;
             display: flex; justify-content: center; align-items: center;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            pointer-events: auto; cursor: pointer;
-            transition: transform 0.1s;
+            pointer-events: auto; cursor: pointer; transition: transform 0.1s;
         }
         .ui-btn:active { transform: scale(0.9); }
         #btn-berry { left: 25px; }
         #btn-ball { right: 25px; }
 
         #toast {
-            position: absolute; top: 35%; left: 50%;
-            transform: translate(-50%, -50%) scale(0.5);
-            font-family: 'Arial Black', sans-serif;
-            font-size: 36px; color: white;
+            position: absolute; top: 35%; left: 50%; transform: translate(-50%, -50%) scale(0.5);
+            font-family: 'Arial Black', sans-serif; font-size: 36px; color: white;
             text-shadow: 0 0 5px black, 3px 3px 0 black;
-            opacity: 0; pointer-events: none;
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0; pointer-events: none; transition: all 0.2s;
         }
         #toast.visible { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 
-        /* Inventory Menus */
         .drawer {
             position: absolute; bottom: 0; left: 0; width: 100%;
-            background: #fff; border-radius: 20px 20px 0 0;
-            padding: 20px; box-sizing: border-box;
-            transform: translateY(110%); transition: transform 0.3s ease-out;
-            pointer-events: auto; z-index: 300;
+            background: #fff; border-radius: 20px 20px 0 0; padding: 20px; box-sizing: border-box;
+            transform: translateY(110%); transition: transform 0.3s ease-out; pointer-events: auto; z-index: 300;
         }
         .drawer.open { transform: translateY(0); }
-        .drawer-item {
-            display: flex; align-items: center; padding: 12px;
-            border-bottom: 1px solid #eee;
-        }
+        .drawer-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #eee; }
+        #active-berry { position: absolute; top: 15%; right: 20px; width: 50px; display: none; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3)); }
 
-        #active-berry {
-            position: absolute; top: 15%; right: 20px; width: 50px; display: none;
-            filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
-        }
-
-        /* --- SCREENS (Result / Level Up) --- */
+        /* SCREENS */
         .full-screen-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.98);
-            z-index: 500;
-            display: none;
-            flex-direction: column; align-items: center; justify-content: center;
-            pointer-events: auto;
+            background: rgba(255,255,255,0.98); z-index: 500; display: none;
+            flex-direction: column; align-items: center; justify-content: center; pointer-events: auto;
             opacity: 0; transition: opacity 0.5s;
         }
         .full-screen-overlay.visible { opacity: 1; }
         
-        .header-text {
-            font-family: 'Arial Black', sans-serif;
-            font-size: 40px; color: #4CAF50;
-            margin-bottom: 20px; text-align: center;
-        }
-        
-        .stats-box {
-            background: #f8f8f8;
-            border-radius: 20px;
-            padding: 25px;
-            width: 85%; max-width: 320px;
-            margin-bottom: 25px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
-        }
-        
-        .stat-row {
-            display: flex; justify-content: space-between;
-            margin: 8px 0; font-weight: bold; color: #666;
-            font-size: 15px;
-        }
+        .header-text { font-family: 'Arial Black', sans-serif; font-size: 40px; color: #4CAF50; margin-bottom: 20px; text-align: center; }
+        .stats-box { background: #f8f8f8; border-radius: 20px; padding: 25px; width: 85%; max-width: 320px; margin-bottom: 25px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .stat-row { display: flex; justify-content: space-between; margin: 8px 0; font-weight: bold; color: #666; font-size: 15px; }
         .stat-val { color: #222; }
         .bonus-row { color: #2196F3; font-size: 14px; }
-        
-        .resource-row {
-            display: flex; justify-content: center; gap: 30px;
-            margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px;
-        }
+        .resource-row { display: flex; justify-content: center; gap: 30px; margin-top: 20px; border-top: 2px solid #eee; padding-top: 20px; }
         .res-item { display: flex; flex-direction: column; align-items: center; font-weight: bold; }
         .res-val { font-size: 22px; margin-top: 5px; }
 
         .btn-action {
-            border: none; padding: 16px 20px;
-            border-radius: 35px; font-size: 16px; font-weight: bold;
-            box-shadow: 0 6px 15px rgba(0,0,0,0.2);
-            cursor: pointer; transform: scale(1); transition: transform 0.1s;
+            border: none; padding: 16px 20px; border-radius: 35px; font-size: 16px; font-weight: bold;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.2); cursor: pointer; transform: scale(1); transition: transform 0.1s;
             display: flex; align-items: center; gap: 8px; color: white;
         }
         .btn-action:active { transform: scale(0.95); }
@@ -249,41 +181,14 @@
         #btn-storage { background: #2196F3; }
         #btn-claim { background: #FF9800; padding: 16px 60px; font-size: 18px; margin-top: 20px; }
 
-        /* Level Up Specifics */
-        #lvl-up-rewards {
-            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
-            width: 100%; margin-top: 20px;
-        }
-        .reward-item {
-            background: white; padding: 10px; border-radius: 10px;
-            display: flex; flex-direction: column; align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
+        #lvl-up-rewards { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; margin-top: 20px; }
+        .reward-item { background: white; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
-        /* Storage Screen */
-        #storage-screen {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #f2f2f2; z-index: 600;
-            display: none; flex-direction: column;
-            pointer-events: auto;
-        }
-        #storage-header {
-            background: white; padding: 20px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            text-align: center; font-weight: bold; font-size: 18px; color: #333;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        #storage-grid {
-            flex: 1; overflow-y: auto; padding: 10px;
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 8px; align-content: flex-start;
-        }
-        .storage-card {
-            background: white; border-radius: 8px;
-            padding: 10px 5px;
-            display: flex; flex-direction: column; align-items: center;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
+        /* STORAGE */
+        #storage-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #f2f2f2; z-index: 600; display: none; flex-direction: column; pointer-events: auto; }
+        #storage-header { background: white; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; font-weight: bold; font-size: 18px; color: #333; display: flex; justify-content: space-between; align-items: center; }
+        #storage-grid { flex: 1; overflow-y: auto; padding: 10px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-content: flex-start; }
+        .storage-card { background: white; border-radius: 8px; padding: 10px 5px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
         .card-cp { font-size: 12px; font-weight: bold; color: #555; }
         .card-img { width: 80px; height: 80px; object-fit: contain; }
         .card-name { font-size: 13px; color: #333; font-weight: 500; }
@@ -292,79 +197,50 @@
         /* Animations */
         .shake { animation: shake 0.6s cubic-bezier(.36,.07,.19,.97) both; }
         @keyframes shake { 20% {transform: translateX(-5px) rotate(-10deg)} 40% {transform: translateX(5px) rotate(10deg)} 60% {transform: translateX(-5px) rotate(-10deg)} 80% {transform: translateX(5px) rotate(10deg)} }
-        
         .catch-flash { animation: catchFlash 0.5s; }
         @keyframes catchFlash { 0% {filter: brightness(1);} 50% {filter: brightness(5) sepia(1) hue-rotate(-50deg);} }
 
-        /* --- POKEMON DETAIL SCREEN (pokemon.js) --- */
+        /* --- POKEMON DETAIL SCREEN (Styling for pokemon.js) --- */
         #pokemon-detail-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%); /* Grass Type feel */
-            z-index: 700;
-            display: flex; flex-direction: column;
+            background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%);
+            z-index: 700; display: flex; flex-direction: column;
             transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
             overflow-y: auto; pointer-events: auto;
         }
         #pokemon-detail-screen.active { transform: translateY(0); }
-
         .pd-header { padding: 40px 20px 10px; text-align: center; }
         .pd-cp-label { font-size: 18px; color: white; font-weight: bold; }
         .pd-cp-val { font-size: 40px; }
-
         .pd-hero { flex: 1; display: flex; justify-content: center; align-items: center; position: relative; min-height: 250px; }
         .pd-sprite { width: 200px; height: 200px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.3)); z-index: 2; }
         .evolve-flash { animation: catchFlash 1s; }
-
-        .pd-info-card {
-            background: white; border-radius: 20px 20px 0 0;
-            padding: 20px; min-height: 40%;
-            box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
-            color: #333;
-        }
-
+        .pd-info-card { background: white; border-radius: 20px 20px 0 0; padding: 20px; min-height: 40%; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); color: #333; }
         .pd-name-row { text-align: center; margin-bottom: 10px; }
         .pd-name { font-size: 28px; font-weight: 500; color: #444; }
         .pd-pencil { color: #aaa; margin-left: 10px; font-style: normal; cursor: pointer; }
-
         .pd-hp-bar { width: 100%; height: 6px; background: #eee; border-radius: 3px; margin: 10px 0; overflow: hidden; }
         .pd-hp-fill { height: 100%; background: #4CAF50; }
         .pd-hp-text { text-align: center; font-size: 14px; color: #666; font-weight: bold; margin-bottom: 20px; }
-
         .pd-stats-row { display: flex; justify-content: space-around; padding-bottom: 20px; border-bottom: 1px solid #eee; }
         .pd-stat { display: flex; flex-direction: column; align-items: center; }
         .pd-stat-val { font-size: 18px; font-weight: bold; color: #333; }
         .pd-stat-label { font-size: 12px; color: #888; margin-top: 4px; }
-
         .pd-resources { display: flex; justify-content: space-around; margin: 20px 0; }
         .pd-res { display: flex; flex-direction: column; align-items: center; }
         .pd-res span { font-weight: bold; font-size: 16px; color: #333; }
         .pd-res-label { font-size: 11px; color: #888; margin-top: 4px; letter-spacing: 1px; }
         .pd-dust-icon { width: 10px; height: 10px; background: #9C27B0; border-radius: 50%; display:inline-block; margin-bottom: 5px; }
         .pd-candy-icon { width: 10px; height: 10px; background: orange; border-radius: 50%; display:inline-block; margin-bottom: 5px; }
-
-        .pd-action-btn {
-            background: #E0E0E0; border-radius: 40px;
-            padding: 12px 20px; margin-bottom: 15px;
-            display: flex; justify-content: space-between; align-items: center;
-            cursor: pointer; position: relative; overflow: hidden;
-        }
+        .pd-action-btn { background: #E0E0E0; border-radius: 40px; padding: 12px 20px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; position: relative; overflow: hidden; }
         .pd-action-btn::before { content:''; position:absolute; left:0; top:0; height:100%; width: 30%; background: #4CAF50; border-radius: 40px 0 0 40px; z-index: 0; }
         .pd-evolve-btn::before { background: linear-gradient(90deg, #2196F3, #21CBF3); }
-        
         .pd-btn-left { z-index: 1; color: white; font-weight: bold; font-size: 14px; text-shadow: 0 1px 2px rgba(0,0,0,0.2); padding-left: 10px; }
         .pd-btn-right { z-index: 1; display: flex; gap: 15px; }
-        
         .pd-cost-item { display: flex; align-items: center; font-size: 14px; font-weight: bold; color: #333; }
         .pd-dust-tiny { width: 8px; height: 8px; background: #9C27B0; border-radius: 50%; margin-right: 5px; }
         .pd-candy-tiny { width: 8px; height: 8px; background: orange; border-radius: 50%; margin-right: 5px; }
-
-        .pd-close-fab {
-            position: absolute; bottom: 30px; right: 50%; transform: translateX(50%);
-            width: 50px; height: 50px; border-radius: 50%;
-            background: rgba(0,0,0,0.1); border: 2px solid #888;
-            color: #555; font-size: 24px; display: flex; justify-content: center; align-items: center;
-            cursor: pointer;
-        }
+        .pd-close-fab { position: absolute; bottom: 30px; right: 50%; transform: translateX(50%); width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.1); border: 2px solid #888; color: #555; font-size: 24px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
 
     </style>
     
@@ -389,18 +265,12 @@
 <body>
 
 <div id="game-stage">
-    <!-- PLAYER HUD -->
     <div id="player-hud">
-        <div id="avatar-bubble">
-            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/trainers/red.png" alt="Trainer">
-        </div>
+        <div id="avatar-bubble"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/trainers/red.png"></div>
         <div id="level-indicator">1</div>
-        <div id="xp-bar-container">
-            <div id="xp-fill"></div>
-        </div>
+        <div id="xp-bar-container"><div id="xp-fill"></div></div>
     </div>
 
-    <!-- WORLD -->
     <div id="pokemon-container">
         <div id="cp-tag">Loading...</div>
         <img id="active-berry" src="" />
@@ -410,55 +280,34 @@
             <div id="ring-target" class="ring"></div>
         </div>
     </div>
-    <div id="ball-container">
-        <div id="ball-sprite"></div>
-    </div>
+    <div id="ball-container"><div id="ball-sprite"></div></div>
 </div>
 
 <div id="ui-layer">
     <div id="toast">Excellent!</div>
 
-    <!-- Gameplay UI -->
     <div id="gameplay-ui">
-        <div id="btn-berry" class="ui-btn" onclick="UI.open('berry')">
-            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/razz-berry.png" width="36">
-        </div>
-        <div id="btn-ball" class="ui-btn" onclick="UI.open('ball')">
-            <img id="current-ball-icon" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" width="36">
-        </div>
+        <div id="btn-berry" class="ui-btn" onclick="UI.open('berry')"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/razz-berry.png" width="36"></div>
+        <div id="btn-ball" class="ui-btn" onclick="UI.open('ball')"><img id="current-ball-icon" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" width="36"></div>
     </div>
 
-    <!-- Menus -->
     <div id="menu-drawer" class="drawer">
         <h3 id="drawer-title" style="text-align:center; color:#555; margin-top:0;">ITEMS</h3>
         <div id="drawer-list" style="max-height:60vh; overflow-y:auto;"></div>
         <button onclick="UI.close()" style="width:100%; padding:15px; margin-top:10px; border:none; background:#eee; font-weight:bold; border-radius:10px;">Close</button>
     </div>
 
-    <!-- Result Screen -->
     <div id="result-overlay" class="full-screen-overlay">
         <div class="header-text">Gotcha!</div>
         <img id="res-poke-img" src="" width="140" style="margin-bottom:15px;">
         <div id="res-poke-name" style="font-weight:bold; color:#555; font-size: 18px; margin-bottom:10px;">Pikachu</div>
         <div class="stats-box">
-            <div class="stat-row">
-                <span>Pokémon Caught</span>
-                <span class="stat-val">100 XP</span>
-            </div>
+            <div class="stat-row"><span>Pokémon Caught</span><span class="stat-val">100 XP</span></div>
             <div id="bonus-list"></div>
-            <div class="stat-row" style="margin-top:15px; font-size:18px; border-top:1px solid #ddd; padding-top:10px;">
-                <span>TOTAL</span>
-                <span class="stat-val" id="total-xp-val" style="color:#4CAF50">100 XP</span>
-            </div>
+            <div class="stat-row" style="margin-top:15px; font-size:18px; border-top:1px solid #ddd; padding-top:10px;"><span>TOTAL</span><span class="stat-val" id="total-xp-val" style="color:#4CAF50">100 XP</span></div>
             <div class="resource-row">
-                <div class="res-item" style="color:#E91E63">
-                    <span>CANDY</span>
-                    <span class="res-val" id="res-candy">+3</span>
-                </div>
-                <div class="res-item" style="color:#9C27B0">
-                    <span>STARDUST</span>
-                    <span class="res-val" id="res-dust">+100</span>
-                </div>
+                <div class="res-item" style="color:#E91E63"><span>CANDY</span><span class="res-val" id="res-candy">+3</span></div>
+                <div class="res-item" style="color:#9C27B0"><span>STARDUST</span><span class="res-val" id="res-dust">+100</span></div>
             </div>
         </div>
         <div class="action-row" style="display:flex; gap:15px;">
@@ -469,7 +318,6 @@
         </div>
     </div>
 
-    <!-- Level Up Screen -->
     <div id="levelup-overlay" class="full-screen-overlay">
         <div class="header-text" style="color:#FF9800">LEVEL UP!</div>
         <div id="new-level-num" style="font-size:80px; font-weight:900; color:#333; margin:20px 0;">2</div>
@@ -480,7 +328,6 @@
         <button id="btn-claim" class="btn-action" onclick="Game.claimRewards()">CLAIM</button>
     </div>
 
-    <!-- Storage Screen -->
     <div id="storage-screen">
         <div id="storage-header">
             <span>Pokemon Storage</span>
@@ -490,26 +337,21 @@
     </div>
 </div>
 
-<!-- POKEMON DETAIL CONTAINER -->
 <div id="pokemon-detail-screen"></div>
 
 <script>
-    /* --- ASSETS & CONFIG --- */
     const ASSETS = {
         poke: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/",
         item: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"
     };
 
-    /* --- DATA PERSISTENCE --- */
     const STORAGE_KEY = 'pokecatch_v12_save';
     
-    // Default State
     let Data = {
         user: { level: 1, xp: 0, nextLevelXp: 1000, candy: 0 },
         inventory: {
             'Poke Ball': 50, 'Great Ball': 10, 'Ultra Ball': 5, 'Master Ball': 1,
-            'Stardust': 500, // Starting Stardust
-            'Razz Berry': 10, 'Nanab Berry': 10, 'Pinap Berry': 10
+            'Stardust': 500, 'Razz Berry': 10, 'Nanab Berry': 10, 'Pinap Berry': 10
         },
         storage: []
     };
@@ -529,12 +371,10 @@
         mons: [
             {id:25, n:'Pikachu'}, {id:1, n:'Bulbasaur'}, {id:4, n:'Charmander'},
             {id:7, n:'Squirtle'}, {id:133, n:'Eevee'}, {id:143, n:'Snorlax'},
-            {id:150, n:'Mewtwo'}, {id:94, n:'Gengar'}, {id:6, n:'Charizard'},
-            {id:92, n:'Gastly'}, {id:93, n:'Haunter'}
+            {id:150, n:'Mewtwo'}, {id:94, n:'Gengar'}
         ]
     };
 
-    /* --- GAME ENGINE --- */
     const Game = {
         state: {
             mode: 'idle', ball: 'Poke Ball', berry: null, spin: 0, mon: null,
@@ -543,11 +383,9 @@
         },
 
         init: () => {
-            // Load Data
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) Data = JSON.parse(saved);
             
-            // Ensure Stardust/Candy init for old saves
             if (!Data.inventory['Stardust']) Data.inventory['Stardust'] = 500;
             if (!Data.user.candy) Data.user.candy = 0;
 
@@ -571,23 +409,75 @@
 
         spawn: () => {
             Game.state.transitioning = false;
-            const m = Meta.mons[Math.floor(Math.random()*Meta.mons.length)];
-            const cp = Math.floor(Math.random()*2500)+100;
-            Game.state.mon = { ...m, cp };
-            Game.state.berry = null;
-
-            document.getElementById('pokemon-sprite').src = ASSETS.poke + m.id + '.png';
-            document.getElementById('pokemon-sprite').style.transform = 'scale(1)';
-            document.getElementById('pokemon-sprite').style.opacity = 1;
-            document.getElementById('cp-tag').innerText = `${m.n} CP ${cp}`;
-            document.getElementById('active-berry').style.display = 'none';
-            document.getElementById('ring-container').style.display = 'flex';
-            document.getElementById('gameplay-ui').style.display = 'block'; 
             
-            const colors = ['#FF0000', '#FF9800', '#4CAF50'];
-            document.getElementById('ring-target').style.borderColor = colors[Math.floor(Math.random()*3)];
+            // --- STRICT BASE POKEMON SPAWN LOGIC ---
+            function trySpawn() {
+                const id = Math.floor(Math.random() * 1025) + 1;
+                const cp = Math.floor(Math.random() * 2500) + 100;
+                
+                // Fetch Species Data First
+                fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`)
+                    .then(res => res.json())
+                    .then(speciesData => {
+                        // 1. Filter: Must be Base Form (evolves_from_species is null)
+                        if (speciesData.evolves_from_species !== null) {
+                            console.log(`Skipped ${speciesData.name} (Evolved)`);
+                            trySpawn(); // Retry
+                            return;
+                        }
 
-            Game.resetBall();
+                        // 2. Filter: Legendary Rarity (5% Chance)
+                        if (speciesData.is_legendary || speciesData.is_mythical) {
+                            if (Math.random() > 0.05) {
+                                console.log(`Skipped ${speciesData.name} (Legendary Rarity Check)`);
+                                trySpawn(); // Retry
+                                return;
+                            }
+                        }
+
+                        // VALID SPAWN
+                        const cleanName = speciesData.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                        
+                        // Set State
+                        Game.state.mon = { id: id, n: cleanName, cp: cp, family: cleanName }; // Save Base name as Family
+                        Game.state.berry = null;
+
+                        // Visuals
+                        const sprite = document.getElementById('pokemon-sprite');
+                        sprite.style.opacity = 0;
+                        document.getElementById('cp-tag').innerText = `${cleanName} CP ${cp}`;
+                        
+                        // Fetch Sprite
+                        fetch(`https://pokeapi.co/api/v2/pokemon/${id}`)
+                            .then(r => r.json())
+                            .then(pData => {
+                                sprite.src = pData.sprites.other['official-artwork'].front_default || pData.sprites.front_default;
+                                sprite.onload = () => {
+                                    sprite.style.transform = 'scale(1)';
+                                    sprite.style.opacity = 1;
+                                };
+                            });
+
+                        document.getElementById('active-berry').style.display = 'none';
+                        document.getElementById('ring-container').style.display = 'flex';
+                        document.getElementById('gameplay-ui').style.display = 'block'; 
+                        const colors = ['#FF0000', '#FF9800', '#4CAF50'];
+                        document.getElementById('ring-target').style.borderColor = colors[Math.floor(Math.random()*3)];
+                        Game.resetBall();
+                    })
+                    .catch(() => {
+                        // Offline Fallback
+                        const m = Meta.mons[Math.floor(Math.random()*Meta.mons.length)];
+                        Game.state.mon = { ...m, cp: cp, family: m.n };
+                        document.getElementById('cp-tag').innerText = `${m.n} CP ${cp}`;
+                        document.getElementById('pokemon-sprite').src = ASSETS.poke + m.id + '.png';
+                        document.getElementById('pokemon-sprite').style.opacity = 1;
+                        Game.resetBall();
+                    });
+            }
+
+            // Start the spawn process
+            trySpawn();
         },
 
         resetBall: () => {
@@ -694,12 +584,14 @@
         playShake: (count) => {
             const b = document.getElementById('ball-sprite');
             if(count >= 3) {
-                // Success
                 document.getElementById('ball-container').classList.add('catch-flash');
                 
                 Data.storage.unshift({
-                    id: Game.state.mon.id, name: Game.state.mon.n,
-                    cp: Game.state.mon.cp, date: new Date().toLocaleDateString()
+                    id: Game.state.mon.id, 
+                    name: Game.state.mon.n,
+                    cp: Game.state.mon.cp, 
+                    family: Game.state.mon.family, // SAVE THE CANDY FAMILY
+                    date: new Date().toLocaleDateString()
                 });
                 Game.save();
 
@@ -730,7 +622,9 @@
             const res = document.getElementById('result-overlay');
             const list = document.getElementById('bonus-list');
             
-            document.getElementById('res-poke-img').src = ASSETS.poke + s.mon.id + '.png';
+            // Use current sprite loaded
+            const spriteSrc = document.getElementById('pokemon-sprite').src;
+            document.getElementById('res-poke-img').src = spriteSrc;
             document.getElementById('res-poke-name').innerText = s.mon.n + " (CP " + s.mon.cp + ")";
             
             let xp = 100;
@@ -750,9 +644,8 @@
             let candy = s.berry === 'Pinap Berry' ? 6 : 3;
             document.getElementById('res-candy').innerText = "+" + candy;
 
-            // Update User Stats
             Data.user.xp += xp;
-            Data.inventory['Stardust'] += 100; // Base dust
+            Data.inventory['Stardust'] += 100; 
             Data.user.candy += candy;
 
             if (Data.user.xp >= Data.user.nextLevelXp) {
@@ -775,7 +668,6 @@
             Data.user.xp -= Data.user.nextLevelXp;
             Data.user.nextLevelXp = Math.floor(Data.user.nextLevelXp * 1.5);
             
-            // Rewards
             const rewards = [];
             for(let i=0; i<5; i++) {
                 const keys = Object.keys(Data.inventory);
@@ -787,12 +679,10 @@
             Game.save();
             UI.updateHUD();
 
-            // Populate Modal
             document.getElementById('new-level-num').innerText = Data.user.level;
             const grid = document.getElementById('lvl-up-rewards');
             grid.innerHTML = '';
             
-            // Consolidate rewards for display
             const counts = {};
             rewards.forEach(x => { counts[x] = (counts[x] || 0) + 5; });
             
@@ -801,12 +691,7 @@
                 if(Meta.balls[k]) img = Meta.balls[k].img;
                 else img = Meta.berries[k].img;
                 
-                grid.innerHTML += `
-                    <div class="reward-item">
-                        <img src="${ASSETS.item + img}" width="40">
-                        <span style="font-weight:bold; margin-top:5px;">+${counts[k]}</span>
-                    </div>
-                `;
+                grid.innerHTML += `<div class="reward-item"><img src="${ASSETS.item + img}" width="40"><span style="font-weight:bold; margin-top:5px;">+${counts[k]}</span></div>`;
             }
 
             const lvl = document.getElementById('levelup-overlay');
@@ -905,7 +790,7 @@
             const list = document.getElementById('drawer-list'); list.innerHTML = '';
             document.getElementById('drawer-title').innerText = "SELECT " + type.toUpperCase();
             for(let key in Data.inventory) {
-                if (key === 'Stardust') continue; // Don't show stardust in item menu
+                if (key === 'Stardust') continue; 
                 if ( (type==='ball' && !Meta.balls[key]) || (type==='berry' && !Meta.berries[key]) ) continue;
                 const img = type === 'ball' ? Meta.balls[key].img : Meta.berries[key].img;
                 const row = document.createElement('div'); row.className = 'drawer-item';
@@ -935,10 +820,10 @@
         },
         openStorage: () => {
             const grid = document.getElementById('storage-grid'); grid.innerHTML = '';
-            // CORRECTED LOGIC:
             Data.storage.forEach((p, index) => {
                 const card = document.createElement('div'); card.className = 'storage-card';
-                card.onclick = () => PokeDetail.open(index); // CALLS THE NEW POKEMON.JS LOGIC
+                // Calls pokemon.js logic
+                card.onclick = () => PokeDetail.open(index); 
                 card.innerHTML = `<div class="card-cp">CP ${p.cp}</div><img class="card-img" src="${ASSETS.poke + p.id + '.png'}"><div class="card-name">${p.name}</div><div class="card-date">${p.date}</div>`;
                 grid.appendChild(card);
             });
@@ -946,16 +831,12 @@
         },
         closeStorage: () => {
             document.getElementById('storage-screen').style.display = 'none';
-            // Only go next if we are in result flow, otherwise just close.
-            // Simplified: Always go next for now.
-            Game.nextPokemon();
         }
     };
 
     window.onload = Game.init;
 </script>
 
-<!-- LOAD NEW LOGIC -->
 <script src="pokemon.js"></script>
 
 </body>
