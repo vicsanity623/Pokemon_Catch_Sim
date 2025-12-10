@@ -1,7 +1,7 @@
 {
-  "name": "Pokémon Catch Sim v0.2.0",
+  "name": "Pokémon Catch Sim v16.0",
   "short_name": "PokeCatch",
-  "start_url": "./index.html?v=0.2.0",
+  "start_url": "./index.html?v=16.0",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
