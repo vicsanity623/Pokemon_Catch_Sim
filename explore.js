@@ -1,7 +1,7 @@
 const Explore = {
     x: 0,
     y: 0,
-    speed: 5,
+    speed: 3,
     objects: [],
     frameId: null,
     raidInterval: null,
