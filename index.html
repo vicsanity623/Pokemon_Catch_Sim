@@ -9,7 +9,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <title>Pokémon Catch Sim v16</title>
+    <title>Pokémon Catch Sim v16.1</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -171,7 +171,6 @@
         #btn-berry { left: 25px; }
         #btn-ball { right: 25px; }
 
-        /* Floating Text */
         .float-text {
             position: absolute;
             font-family: 'Arial Black', sans-serif;
@@ -324,8 +323,7 @@
         #pokemon-detail-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: linear-gradient(135deg, #a8e063 0%, #56ab2f 100%);
-            z-index: 700;
-            display: flex; flex-direction: column;
+            z-index: 700; display: flex; flex-direction: column;
             transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
             overflow-y: auto; pointer-events: auto;
         }
@@ -392,28 +390,38 @@
 
     </style>
     
+    <!-- SAFE AUTO-UPDATE SCRIPT -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then(reg => {
-                        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                        reg.onupdatefound = () => {
-                            const newWorker = reg.installing;
+                    .then(registration => {
+                        if (registration.waiting) {
+                            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                        registration.onupdatefound = () => {
+                            const newWorker = registration.installing;
                             newWorker.onstatechange = () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) window.location.reload();
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    window.location.reload();
+                                }
                             };
                         };
                     });
             });
-            navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
+            let refreshing;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (refreshing) return;
+                refreshing = true;
+                window.location.reload();
+            });
         }
     </script>
 </head>
 <body>
 
 <div id="game-stage">
-    <div id="version-tag">v16.0</div>
+    <div id="version-tag">v16.1</div>
 
     <div id="player-hud">
         <div id="avatar-bubble">
@@ -550,11 +558,10 @@
             'Nanab Berry': { img:'nanab-berry.png', mod: 1.0 },
             'Pinap Berry': { img:'pinap-berry.png', mod: 1.0 }
         },
+        // Fallback list
         mons: [
             {id:25, n:'Pikachu'}, {id:1, n:'Bulbasaur'}, {id:4, n:'Charmander'},
-            {id:7, n:'Squirtle'}, {id:133, n:'Eevee'}, {id:143, n:'Snorlax'},
-            {id:150, n:'Mewtwo'}, {id:94, n:'Gengar'}, {id:6, n:'Charizard'},
-            {id:66, n:'Machop'}
+            {id:7, n:'Squirtle'}, {id:133, n:'Eevee'}, {id:143, n:'Snorlax'}
         ]
     };
 
@@ -594,7 +601,6 @@
         },
 
         autoSwitchBall: () => {
-            // Find first available ball
             const order = ['Poke Ball', 'Great Ball', 'Ultra Ball', 'Master Ball'];
             for(let ball of order) {
                 if(Data.inventory[ball] > 0) {
@@ -604,7 +610,7 @@
                     return true;
                 }
             }
-            return false; // Totally out of ammo
+            return false; 
         },
 
         spawn: () => {
@@ -639,6 +645,24 @@
                         // Set State
                         Game.state.mon = { id: id, n: cleanName, cp: cp, family: cleanName }; // Save Base name as Family
                         Game.state.berry = null;
+
+                        // FETCH EVO CHAIN FOR STORAGE
+                        fetch(speciesData.evolution_chain.url)
+                            .then(r => r.json())
+                            .then(evoData => {
+                                const chain = evoData.chain;
+                                let nextEvoId = null;
+                                const getUrlId = (url) => url.split('/').filter(Boolean).pop();
+
+                                if (chain.evolves_to.length > 0) {
+                                    if (getUrlId(chain.species.url) == id) {
+                                        const evo = chain.evolves_to[Math.floor(Math.random() * chain.evolves_to.length)];
+                                        nextEvoId = getUrlId(evo.species.url);
+                                    }
+                                }
+                                Game.state.mon.nextId = nextEvoId;
+                            })
+                            .catch(e => console.log(e));
 
                         // Visuals
                         const sprite = document.getElementById('pokemon-sprite');
@@ -726,7 +750,10 @@
 
                 if (s.pos.z > 250 && s.pos.z < 380) {
                     const rect = document.getElementById('pokemon-container').getBoundingClientRect();
-                    if (s.pos.x > rect.left+20 && s.pos.x < rect.right-20 && s.pos.y > rect.top+20 && s.pos.y < rect.bottom-20) Game.hit();
+                    // Wider Hitbox
+                    if (s.pos.x > rect.left && s.pos.x < rect.right && s.pos.y > rect.top && s.pos.y < rect.bottom) {
+                        Game.hit();
+                    }
                 }
                 
                 if (s.pos.z > 450 || s.pos.y > window.innerHeight) Game.miss();
@@ -802,7 +829,9 @@
                 
                 Data.storage.unshift({
                     id: Game.state.mon.id, name: Game.state.mon.n,
-                    cp: Game.state.mon.cp, family: Game.state.mon.family,
+                    cp: Game.state.mon.cp, 
+                    family: Game.state.mon.family,
+                    nextId: Game.state.mon.nextId, // SAVE EVO DATA
                     date: new Date().toLocaleDateString()
                 });
                 Game.save();
@@ -834,7 +863,8 @@
             const res = document.getElementById('result-overlay');
             const list = document.getElementById('bonus-list');
             
-            document.getElementById('res-poke-img').src = document.getElementById('pokemon-sprite').src;
+            const spriteSrc = document.getElementById('pokemon-sprite').src;
+            document.getElementById('res-poke-img').src = spriteSrc;
             document.getElementById('res-poke-name').innerText = s.mon.n + " (CP " + s.mon.cp + ")";
             
             let xp = 100;
@@ -967,7 +997,7 @@
             const vy = (hist[hist.length-1].y - hist[0].y) / (hist[hist.length-1].t - hist[0].t);
             if (vy > -0.5) { Game.resetBall(); return; }
             
-            // INFINITE AMMO GLITCH FIX + AUTO SWITCH
+            // INFINITE AMMO GLITCH FIX
             if(Data.inventory[Game.state.ball] <= 0) {
                 if(!Game.autoSwitchBall()) {
                     UI.spawnFloatText("Out of Balls!", window.innerWidth/2, window.innerHeight-100, "red");
@@ -976,7 +1006,6 @@
                 }
             }
             
-            // Consume Ball
             Data.inventory[Game.state.ball]--;
             UI.updateIcon();
 
@@ -1048,10 +1077,9 @@
         },
         openStorage: () => {
             const grid = document.getElementById('storage-grid'); grid.innerHTML = '';
-            // Pass index to the loop to identify pokemon
             Data.storage.forEach((p, index) => {
                 const card = document.createElement('div'); card.className = 'storage-card';
-                card.onclick = () => PokeDetail.open(index); // CALLS THE NEW POKEMON.JS LOGIC
+                card.onclick = () => PokeDetail.open(index); 
                 card.innerHTML = `<div class="card-cp">CP ${p.cp}</div><img class="card-img" src="${ASSETS.poke + p.id + '.png'}"><div class="card-name">${p.name}</div><div class="card-date">${p.date}</div>`;
                 grid.appendChild(card);
             });
