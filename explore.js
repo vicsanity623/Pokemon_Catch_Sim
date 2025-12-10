@@ -116,7 +116,7 @@ const Explore = {
                 el.className = 'map-obj pokestop';
             } else if (obj.type === 'wild') {
                 el.className = 'map-obj wild-spawn';
-                el.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${obj.id}.png" width="50">`;
+                el.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${obj.id}.png" width="80">`;
             }
             el.style.left = obj.x + 'px';
             el.style.top = obj.y + 'px';
@@ -145,9 +145,19 @@ const Explore = {
 
                 if (dist < 50) {
                     if (obj.type === 'wild') {
-                        Explore.triggerEncounter(obj.id);
+                        // Check if on cooldown
+                        if (obj.cooldown && Date.now() < obj.cooldown) return;
+
+                        Explore.triggerEncounter(obj.id, obj);
                         obj.el.style.display = 'none';
-                        obj.x = -9999;
+
+                        // Set 60s cooldown
+                        obj.cooldown = Date.now() + 60000;
+
+                        // Respawn after 60 seconds
+                        setTimeout(() => {
+                            if (obj.el) obj.el.style.display = 'block';
+                        }, 60000);
                     } else if (obj.type === 'stop') {
                         Explore.spinStop(obj);
                     } else if (obj.type === 'gym') {
@@ -204,9 +214,29 @@ const Explore = {
         window.addEventListener('mouseup', end);
     },
 
-    triggerEncounter: (id) => {
+    triggerEncounter: (id, objRef) => {
         cancelAnimationFrame(Explore.frameId);
         Explore.isInteracting = true;
+
+        // Regenerate wild Pokemon with random species for next time
+        const baseIds = [1, 4, 7, 10, 13, 16, 19, 21, 23, 25, 27, 29, 32, 35, 37, 39, 41, 43, 46, 48, 50, 52, 54, 56, 58, 60, 63, 66, 69, 72, 74, 77, 79, 81, 83, 84, 86, 88, 90, 92, 95, 96, 98, 100, 102, 104, 106, 108, 109, 111, 113, 114, 115, 116, 118, 120, 122, 123, 124, 125, 126, 127, 128, 129, 131, 132, 133, 137, 138, 140, 142, 143, 147];
+        const wildObj = objRef || Explore.objects.find(obj => obj.type === 'wild' && obj.id === id);
+        if (wildObj) {
+            // Assign new random species
+            const newId = baseIds[Math.floor(Math.random() * baseIds.length)];
+            wildObj.id = newId;
+
+            // Update in saved map data
+            const mapObj = Data.mapData.find(item => item.x === wildObj.x && item.y === wildObj.y && item.type === 'wild');
+            if (mapObj) {
+                mapObj.id = newId;
+                Game.save();
+            }
+
+            // Update sprite for next appearance (increased to 80px)
+            wildObj.el.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${newId}.png" width="80">`;
+        }
+
         setTimeout(() => {
             document.getElementById('explore-screen').classList.remove('active');
             document.getElementById('catch-screen').classList.add('active');
@@ -369,8 +399,10 @@ const Explore = {
         `;
 
         const slotsDiv = document.getElementById('raid-team-slots');
+        // Sort Pokemon by CP (highest first) and select top 3
+        const sortedPokemon = [...Data.storage].sort((a, b) => (b.cp || 0) - (a.cp || 0));
         for (let i = 0; i < 3; i++) {
-            const mon = Data.storage[i];
+            const mon = sortedPokemon[i];
             if (mon) {
                 // Ensure Moves/HP exist (backwards compat)
                 if (!mon.moves) mon.moves = [{ name: 'Tackle', power: 20 }, { name: 'Struggle', power: 30 }];
@@ -399,8 +431,10 @@ const Explore = {
         let maxBossHp = 5000;
         let pokes = []; // { index, curHp, maxHp, moves, elId }
 
+        // Use same sorted array as display
+        const sortedPokemon = [...Data.storage].sort((a, b) => (b.cp || 0) - (a.cp || 0));
         for (let i = 0; i < 3; i++) {
-            const m = Data.storage[i];
+            const m = sortedPokemon[i];
             if (m) {
                 pokes.push({
                     idx: i,
