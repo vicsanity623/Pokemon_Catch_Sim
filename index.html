@@ -9,7 +9,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <title>Pokémon Catch Sim v11</title>
+    <title>Pokémon Catch Sim v12</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -28,13 +28,53 @@
         #game-stage {
             position: relative; width: 100%; height: 100%;
             overflow: hidden;
-            background: linear-gradient(to bottom, 
-                #5CA0F0 0%, 
-                #C3E0F8 50%, 
-                #68A748 50%, 
-                #3B7E27 100%
-            );
+            background: linear-gradient(to bottom, #5CA0F0 0%, #C3E0F8 50%, #68A748 50%, #3B7E27 100%);
             perspective: 900px;
+        }
+
+        /* --- PLAYER HUD (TOP CENTER) --- */
+        #player-hud {
+            position: absolute; top: 15px; left: 50%;
+            transform: translateX(-50%);
+            width: 90%; max-width: 400px;
+            display: flex; align-items: center;
+            z-index: 400; pointer-events: none;
+        }
+
+        #avatar-bubble {
+            width: 50px; height: 50px;
+            background: white; border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 2; display: flex; justify-content: center; align-items: center;
+            overflow: hidden;
+        }
+        #avatar-bubble img { width: 100%; }
+
+        #xp-bar-container {
+            flex: 1; height: 12px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 0 10px 10px 0;
+            margin-left: -25px; /* Tuck behind avatar */
+            padding-left: 30px; /* Space for text */
+            position: relative;
+            overflow: hidden;
+        }
+
+        #xp-fill {
+            height: 100%; width: 0%;
+            background: #00E5FF;
+            transition: width 0.5s ease-out;
+        }
+
+        #level-indicator {
+            position: absolute; bottom: -5px; left: 0;
+            background: #4CAF50; color: white;
+            font-weight: bold; font-size: 14px;
+            width: 24px; height: 24px;
+            border-radius: 50%;
+            display: flex; justify-content: center; align-items: center;
+            border: 2px solid white; z-index: 3;
         }
 
         /* --- POKEMON TARGET --- */
@@ -155,8 +195,8 @@
             filter: drop-shadow(0 2px 5px rgba(0,0,0,0.3));
         }
 
-        /* --- RESULT SCREEN --- */
-        #result-overlay {
+        /* --- SCREENS (Result / Level Up) --- */
+        .full-screen-overlay {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(255,255,255,0.98);
             z-index: 500;
@@ -165,15 +205,15 @@
             pointer-events: auto;
             opacity: 0; transition: opacity 0.5s;
         }
-        #result-overlay.visible { opacity: 1; }
+        .full-screen-overlay.visible { opacity: 1; }
         
-        #result-header {
+        .header-text {
             font-family: 'Arial Black', sans-serif;
             font-size: 40px; color: #4CAF50;
-            margin-bottom: 20px;
+            margin-bottom: 20px; text-align: center;
         }
         
-        .result-stats-box {
+        .stats-box {
             background: #f8f8f8;
             border-radius: 20px;
             padding: 25px;
@@ -197,26 +237,30 @@
         .res-item { display: flex; flex-direction: column; align-items: center; font-weight: bold; }
         .res-val { font-size: 22px; margin-top: 5px; }
 
-        /* Action Buttons Row */
-        .action-row {
-            display: flex;
-            gap: 15px;
-            margin-top: 10px;
-        }
-
         .btn-action {
             border: none; padding: 16px 20px;
             border-radius: 35px; font-size: 16px; font-weight: bold;
             box-shadow: 0 6px 15px rgba(0,0,0,0.2);
             cursor: pointer; transform: scale(1); transition: transform 0.1s;
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: center; gap: 8px; color: white;
         }
         .btn-action:active { transform: scale(0.95); }
+        #btn-next { background: #4CAF50; }
+        #btn-storage { background: #2196F3; }
+        #btn-claim { background: #FF9800; padding: 16px 60px; font-size: 18px; margin-top: 20px; }
 
-        #btn-next { background: #4CAF50; color: white; }
-        #btn-storage { background: #2196F3; color: white; }
+        /* Level Up Specifics */
+        #lvl-up-rewards {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 15px;
+            width: 100%; margin-top: 20px;
+        }
+        .reward-item {
+            background: white; padding: 10px; border-radius: 10px;
+            display: flex; flex-direction: column; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
 
-        /* --- POKEMON STORAGE SCREEN --- */
+        /* Storage Screen */
         #storage-screen {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: #f2f2f2; z-index: 600;
@@ -254,37 +298,39 @@
 
     </style>
     
-    <!-- SAFE AUTO-UPDATE SCRIPT -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then(registration => {
-                        if (registration.waiting) {
-                            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-                        }
-                        registration.onupdatefound = () => {
-                            const newWorker = registration.installing;
+                    .then(reg => {
+                        if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        reg.onupdatefound = () => {
+                            const newWorker = reg.installing;
                             newWorker.onstatechange = () => {
-                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                                    window.location.reload();
-                                }
+                                if (newWorker.state === 'installed' && navigator.serviceWorker.controller) window.location.reload();
                             };
                         };
                     });
             });
-            let refreshing;
-            navigator.serviceWorker.addEventListener('controllerchange', () => {
-                if (refreshing) return;
-                refreshing = true;
-                window.location.reload();
-            });
+            navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
         }
     </script>
 </head>
 <body>
 
 <div id="game-stage">
+    <!-- PLAYER HUD -->
+    <div id="player-hud">
+        <div id="avatar-bubble">
+            <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/trainers/red.png" alt="Trainer">
+        </div>
+        <div id="level-indicator">1</div>
+        <div id="xp-bar-container">
+            <div id="xp-fill"></div>
+        </div>
+    </div>
+
+    <!-- WORLD -->
     <div id="pokemon-container">
         <div id="cp-tag">Loading...</div>
         <img id="active-berry" src="" />
@@ -320,11 +366,11 @@
     </div>
 
     <!-- Result Screen -->
-    <div id="result-overlay">
-        <div id="result-header">Gotcha!</div>
+    <div id="result-overlay" class="full-screen-overlay">
+        <div class="header-text">Gotcha!</div>
         <img id="res-poke-img" src="" width="140" style="margin-bottom:15px;">
         <div id="res-poke-name" style="font-weight:bold; color:#555; font-size: 18px; margin-bottom:10px;">Pikachu</div>
-        <div class="result-stats-box">
+        <div class="stats-box">
             <div class="stat-row">
                 <span>Pokémon Caught</span>
                 <span class="stat-val">100 XP</span>
@@ -345,16 +391,23 @@
                 </div>
             </div>
         </div>
-        
-        <div class="action-row">
+        <div class="action-row" style="display:flex; gap:15px;">
             <button id="btn-storage" class="btn-action" onclick="UI.openStorage()">
-                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" width="24">
-                Pokémon
+                <img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" width="24"> Pokémon
             </button>
-            <button id="btn-next" class="btn-action" onclick="Game.nextPokemon()">
-                Next ➔
-            </button>
+            <button id="btn-next" class="btn-action" onclick="Game.nextPokemon()">Next ➔</button>
         </div>
+    </div>
+
+    <!-- Level Up Screen -->
+    <div id="levelup-overlay" class="full-screen-overlay">
+        <div class="header-text" style="color:#FF9800">LEVEL UP!</div>
+        <div id="new-level-num" style="font-size:80px; font-weight:900; color:#333; margin:20px 0;">2</div>
+        <div class="stats-box">
+            <div style="text-align:center; font-weight:bold; color:#666;">REWARDS</div>
+            <div id="lvl-up-rewards"></div>
+        </div>
+        <button id="btn-claim" class="btn-action" onclick="Game.claimRewards()">CLAIM</button>
     </div>
 
     <!-- Storage Screen -->
@@ -363,58 +416,63 @@
             <span>Pokemon Storage</span>
             <button onclick="UI.closeStorage()" style="border:none; background:none; font-size:24px; color:#555; padding:0 10px;">✕</button>
         </div>
-        <div id="storage-grid">
-            <!-- Cards go here -->
-        </div>
+        <div id="storage-grid"></div>
     </div>
 </div>
 
 <script>
-    /* --- ASSETS & DATA --- */
+    /* --- ASSETS & CONFIG --- */
     const ASSETS = {
         poke: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/",
         item: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/"
     };
 
-    const DB = {
+    /* --- DATA PERSISTENCE --- */
+    const STORAGE_KEY = 'pokecatch_v12_save';
+    
+    // Default State
+    let Data = {
+        user: { level: 1, xp: 0, nextLevelXp: 1000 },
+        inventory: {
+            'Poke Ball': 50, 'Great Ball': 10, 'Ultra Ball': 5, 'Master Ball': 1,
+            'Razz Berry': 10, 'Nanab Berry': 10, 'Pinap Berry': 10
+        },
+        storage: []
+    };
+
+    const Meta = {
         balls: {
-            'Poke Ball': { img:'poke-ball.png', qty:50, rate: 1.0 },
-            'Great Ball': { img:'great-ball.png', qty:30, rate: 1.5 },
-            'Ultra Ball': { img:'ultra-ball.png', qty:15, rate: 2.0 },
-            'Master Ball': { img:'master-ball.png', qty:1, rate: 100.0 }
+            'Poke Ball': { img:'poke-ball.png', rate: 1.0 },
+            'Great Ball': { img:'great-ball.png', rate: 1.5 },
+            'Ultra Ball': { img:'ultra-ball.png', rate: 2.0 },
+            'Master Ball': { img:'master-ball.png', rate: 100.0 }
         },
         berries: {
-            'Razz Berry': { img:'razz-berry.png', qty:10, mod: 1.5 },
-            'Nanab Berry': { img:'nanab-berry.png', qty:10, mod: 1.0 }, 
-            'Pinap Berry': { img:'pinap-berry.png', qty:10, mod: 1.0 }
+            'Razz Berry': { img:'razz-berry.png', mod: 1.5 },
+            'Nanab Berry': { img:'nanab-berry.png', mod: 1.0 },
+            'Pinap Berry': { img:'pinap-berry.png', mod: 1.0 }
         },
         mons: [
             {id:25, n:'Pikachu'}, {id:1, n:'Bulbasaur'}, {id:4, n:'Charmander'},
             {id:7, n:'Squirtle'}, {id:133, n:'Eevee'}, {id:143, n:'Snorlax'},
             {id:150, n:'Mewtwo'}, {id:94, n:'Gengar'}, {id:6, n:'Charizard'}
-        ],
-        // LOAD STORAGE FROM LOCALSTORAGE
-        storage: JSON.parse(localStorage.getItem('poke_storage')) || []
+        ]
     };
 
     /* --- GAME ENGINE --- */
     const Game = {
         state: {
-            mode: 'idle', 
-            ball: 'Poke Ball',
-            berry: null,
-            spin: 0,
-            mon: null,
-            pos: {x:0, y:0, z:0},
-            vel: {x:0, y:0, z:0},
-            rot: 0,
-            throwGrade: null, 
-            isCurve: false,
-            shakeTarget: 0,
-            transitioning: false 
+            mode: 'idle', ball: 'Poke Ball', berry: null, spin: 0, mon: null,
+            pos: {x:0, y:0, z:0}, vel: {x:0, y:0, z:0}, rot: 0,
+            throwGrade: null, isCurve: false, shakeTarget: 0, transitioning: false
         },
 
         init: () => {
+            // Load Data
+            const saved = localStorage.getItem(STORAGE_KEY);
+            if (saved) Data = JSON.parse(saved);
+            
+            UI.updateHUD();
             Game.spawn();
             
             const stage = document.body;
@@ -428,12 +486,15 @@
             requestAnimationFrame(Game.loop);
         },
 
+        save: () => {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(Data));
+        },
+
         spawn: () => {
             Game.state.transitioning = false;
-            const m = DB.mons[Math.floor(Math.random()*DB.mons.length)];
+            const m = Meta.mons[Math.floor(Math.random()*Meta.mons.length)];
             const cp = Math.floor(Math.random()*2500)+100;
-            Game.state.mon = m;
-            Game.state.mon.cp = cp;
+            Game.state.mon = { ...m, cp };
             Game.state.berry = null;
 
             document.getElementById('pokemon-sprite').src = ASSETS.poke + m.id + '.png';
@@ -484,15 +545,10 @@
                 s.pos.y += s.vel.y;
                 s.pos.z += s.vel.z;
 
-                s.vel.y += 0.85; 
-                s.vel.z *= 0.98;
-                s.vel.x += s.spin * 0.45;
-
+                s.vel.y += 0.85; s.vel.z *= 0.98; s.vel.x += s.spin * 0.45;
                 s.rot += s.spin * 20 + 5; 
                 
-                const perspective = 900;
-                const scale = perspective / (perspective + s.pos.z);
-                
+                const scale = 900 / (900 + s.pos.z);
                 const b = document.getElementById('ball-container');
                 const g = document.getElementById('ball-sprite');
                 
@@ -503,9 +559,7 @@
 
                 if (s.pos.z > 250 && s.pos.z < 380) {
                     const rect = document.getElementById('pokemon-container').getBoundingClientRect();
-                    if (s.pos.x > rect.left+20 && s.pos.x < rect.right-20 && s.pos.y > rect.top+20 && s.pos.y < rect.bottom-20) {
-                        Game.hit();
-                    }
+                    if (s.pos.x > rect.left+20 && s.pos.x < rect.right-20 && s.pos.y > rect.top+20 && s.pos.y < rect.bottom-20) Game.hit();
                 }
                 
                 if (s.pos.z > 450 || s.pos.y > window.innerHeight) Game.miss();
@@ -515,29 +569,27 @@
 
         hit: () => {
             Game.state.mode = 'catch';
-            
             const outer = document.getElementById('ring-outer').offsetWidth;
             const target = document.getElementById('ring-target').offsetWidth;
             const ratio = target/outer;
             
-            let msg="Nice!", col="white", gradeBonus = 1.1;
-            if(ratio < 0.25) { msg="Excellent!"; col="#FFD700"; Game.state.throwGrade="Excellent"; gradeBonus = 1.8; }
-            else if(ratio < 0.55) { msg="Great!"; col="red"; Game.state.throwGrade="Great"; gradeBonus = 1.4; }
-            else if(ratio > 0.95) { msg=""; Game.state.throwGrade=null; gradeBonus = 1.0; }
-            else { Game.state.throwGrade="Nice"; gradeBonus = 1.1; }
+            let msg="Nice!", col="white", gradeBonus=1.1;
+            if(ratio < 0.25) { msg="Excellent!"; col="#FFD700"; Game.state.throwGrade="Excellent"; gradeBonus=1.8; }
+            else if(ratio < 0.55) { msg="Great!"; col="red"; Game.state.throwGrade="Great"; gradeBonus=1.4; }
+            else if(ratio > 0.95) { msg=""; Game.state.throwGrade=null; gradeBonus=1.0; }
+            else { Game.state.throwGrade="Nice"; gradeBonus=1.1; }
 
             if(msg) UI.toast(msg, col);
 
-            let baseChance = 0.40;
-            const ballRate = DB.balls[Game.state.ball].rate;
-            const berryMod = Game.state.berry ? DB.berries[Game.state.berry].mod : 1.0;
+            let base = 0.40;
+            const ballRate = Meta.balls[Game.state.ball].rate;
+            const berryMod = Game.state.berry ? Meta.berries[Game.state.berry].mod : 1.0;
             const curveMod = Game.state.isCurve ? 1.2 : 1.0;
             
-            let finalChance = baseChance * ballRate * berryMod * gradeBonus * curveMod;
-            if (Game.state.ball === 'Master Ball') finalChance = 100;
+            let chance = base * ballRate * berryMod * gradeBonus * curveMod;
+            if (Game.state.ball === 'Master Ball') chance = 100;
             
-            if (Math.random() < finalChance) Game.state.shakeTarget = 3;
-            else Game.state.shakeTarget = Math.floor(Math.random() * 3);
+            Game.state.shakeTarget = (Math.random() < chance) ? 3 : Math.floor(Math.random() * 3);
 
             document.getElementById('ring-container').style.display = 'none';
             const b = document.getElementById('ball-container');
@@ -562,18 +614,15 @@
 
         playShake: (count) => {
             const b = document.getElementById('ball-sprite');
-            
             if(count >= 3) {
-                // SUCCESS
+                // Success
                 document.getElementById('ball-container').classList.add('catch-flash');
-                // SAVE POKEMON
-                DB.storage.unshift({
-                    id: Game.state.mon.id,
-                    name: Game.state.mon.n,
-                    cp: Game.state.mon.cp,
-                    date: new Date().toLocaleDateString()
+                
+                Data.storage.unshift({
+                    id: Game.state.mon.id, name: Game.state.mon.n,
+                    cp: Game.state.mon.cp, date: new Date().toLocaleDateString()
                 });
-                localStorage.setItem('poke_storage', JSON.stringify(DB.storage));
+                Game.save();
 
                 setTimeout(() => {
                     document.getElementById('ball-container').classList.remove('catch-flash');
@@ -583,20 +632,16 @@
             }
             
             if(count < Game.state.shakeTarget) {
-                b.style.animation = 'none';
-                b.offsetHeight; 
+                b.style.animation = 'none'; b.offsetHeight; 
                 b.parentElement.classList.add('shake');
-                setTimeout(() => {
-                    b.parentElement.classList.remove('shake');
-                    Game.playShake(count + 1);
-                }, 1000);
+                setTimeout(() => { b.parentElement.classList.remove('shake'); Game.playShake(count+1); }, 1000);
             } else {
                 UI.toast("Broke free!", "white");
                 document.getElementById('ball-container').style.display = 'none';
-                const sprite = document.getElementById('pokemon-sprite');
-                sprite.style.transform = 'scale(1)';
-                sprite.style.opacity = 1;
+                const s = document.getElementById('pokemon-sprite');
+                s.style.transform = 'scale(1)'; s.style.opacity = 1;
                 document.getElementById('ring-container').style.display = 'flex';
+                Game.state.berry = null; document.getElementById('active-berry').style.display = 'none';
                 setTimeout(Game.resetBall, 1000);
             }
         },
@@ -609,26 +654,91 @@
             document.getElementById('res-poke-img').src = ASSETS.poke + s.mon.id + '.png';
             document.getElementById('res-poke-name').innerText = s.mon.n + " (CP " + s.mon.cp + ")";
             
-            let totalXP = 100;
+            let xp = 100;
             list.innerHTML = '';
             
             if (s.throwGrade) {
                 let bonus = s.throwGrade === 'Excellent' ? 1000 : (s.throwGrade === 'Great' ? 500 : 100);
-                totalXP += bonus;
+                xp += bonus;
                 list.innerHTML += `<div class="stat-row bonus-row"><span>${s.throwGrade} Throw</span><span>+${bonus} XP</span></div>`;
             }
             if (s.isCurve) {
-                totalXP += 20;
+                xp += 20;
                 list.innerHTML += `<div class="stat-row bonus-row"><span>Curveball</span><span>+20 XP</span></div>`;
             }
 
-            document.getElementById('total-xp-val').innerText = totalXP + " XP";
+            document.getElementById('total-xp-val').innerText = xp + " XP";
             let candy = s.berry === 'Pinap Berry' ? 6 : 3;
             document.getElementById('res-candy').innerText = "+" + candy;
+
+            // Update User Stats
+            Data.user.xp += xp;
+            if (Data.user.xp >= Data.user.nextLevelXp) {
+                setTimeout(Game.levelUp, 1000);
+            } else {
+                Game.save();
+                UI.updateHUD();
+            }
 
             document.getElementById('gameplay-ui').style.display = 'none';
             res.style.display = 'flex';
             setTimeout(() => res.classList.add('visible'), 10);
+        },
+
+        levelUp: () => {
+            document.getElementById('result-overlay').classList.remove('visible');
+            document.getElementById('result-overlay').style.display = 'none';
+
+            Data.user.level++;
+            Data.user.xp -= Data.user.nextLevelXp;
+            Data.user.nextLevelXp = Math.floor(Data.user.nextLevelXp * 1.5);
+            
+            // Rewards
+            const rewards = [];
+            for(let i=0; i<5; i++) {
+                const keys = Object.keys(Data.inventory);
+                const item = keys[Math.floor(Math.random()*keys.length)];
+                if(item === 'Master Ball') continue; // Too rare
+                Data.inventory[item] += 5;
+                rewards.push(item);
+            }
+            Game.save();
+            UI.updateHUD();
+
+            // Populate Modal
+            document.getElementById('new-level-num').innerText = Data.user.level;
+            const grid = document.getElementById('lvl-up-rewards');
+            grid.innerHTML = '';
+            
+            // Consolidate rewards for display
+            const counts = {};
+            rewards.forEach(x => { counts[x] = (counts[x] || 0) + 5; });
+            
+            for (let k in counts) {
+                let img = "";
+                if(Meta.balls[k]) img = Meta.balls[k].img;
+                else img = Meta.berries[k].img;
+                
+                grid.innerHTML += `
+                    <div class="reward-item">
+                        <img src="${ASSETS.item + img}" width="40">
+                        <span style="font-weight:bold; margin-top:5px;">+${counts[k]}</span>
+                    </div>
+                `;
+            }
+
+            const lvl = document.getElementById('levelup-overlay');
+            lvl.style.display = 'flex';
+            setTimeout(() => lvl.classList.add('visible'), 10);
+        },
+
+        claimRewards: () => {
+            const lvl = document.getElementById('levelup-overlay');
+            lvl.classList.remove('visible');
+            setTimeout(() => {
+                lvl.style.display = 'none';
+                Game.nextPokemon();
+            }, 300);
         },
 
         nextPokemon: () => {
@@ -650,161 +760,108 @@
 
     /* --- INPUT SYSTEM --- */
     const Input = {
-        active: false,
-        hist: [],
-
+        active: false, hist: [],
         start: (e) => {
             if (Game.state.mode !== 'idle') return;
             const p = e.touches ? e.touches[0] : e;
             const rect = document.getElementById('ball-container').getBoundingClientRect();
             const pad = 120;
             if (p.clientX < rect.left - pad || p.clientX > rect.right + pad || p.clientY < rect.top - pad) return;
-
-            e.preventDefault();
-            Input.active = true;
-            Game.state.mode = 'hold';
-            Input.hist = [];
-            
+            e.preventDefault(); Input.active = true; Game.state.mode = 'hold'; Input.hist = [];
             const b = document.getElementById('ball-container');
-            b.style.transition = 'none';
-            b.style.transform = `translate3d(-50%, -50%, 0) scale(1.15)`;
+            b.style.transition = 'none'; b.style.transform = `translate3d(-50%, -50%, 0) scale(1.15)`;
             Input.track(p.clientX, p.clientY);
         },
-
-        move: (e) => {
-            if (!Input.active) return;
-            e.preventDefault();
-            const p = e.touches ? e.touches[0] : e;
-            Input.track(p.clientX, p.clientY);
-        },
-
+        move: (e) => { if (Input.active) { e.preventDefault(); const p = e.touches ? e.touches[0] : e; Input.track(p.clientX, p.clientY); } },
         track: (x, y) => {
-            const now = Date.now();
-            Input.hist.push({x, y, t:now});
+            const now = Date.now(); Input.hist.push({x, y, t:now});
             if (Input.hist.length > 8) Input.hist.shift();
-            Game.state.pos.x = x;
-            Game.state.pos.y = y;
+            Game.state.pos.x = x; Game.state.pos.y = y;
             if (Input.hist.length > 3) {
                 const prev = Input.hist[Input.hist.length-2];
-                const dx = x - prev.x;
-                Game.state.spin = dx * 0.8; 
+                Game.state.spin = (x - prev.x) * 0.8; 
             }
         },
-
         end: (e) => {
-            if (!Input.active) return;
-            Input.active = false;
+            if (!Input.active) return; Input.active = false;
             const hist = Input.hist;
-            if(hist.length < 2) { Game.resetBall(); return; }
-            const start = hist[0];
-            const end = hist[hist.length-1];
-            const dt = end.t - start.t;
-            if(Date.now() - end.t > 150) { Game.resetBall(); return; }
-            const vx = (end.x - start.x) / dt;
-            const vy = (end.y - start.y) / dt;
+            if(hist.length < 2 || Date.now() - hist[hist.length-1].t > 150) { Game.resetBall(); return; }
+            const vx = (hist[hist.length-1].x - hist[0].x) / (hist[hist.length-1].t - hist[0].t);
+            const vy = (hist[hist.length-1].y - hist[0].y) / (hist[hist.length-1].t - hist[0].t);
             if (vy > -0.5) { Game.resetBall(); return; }
-
-            if(DB.balls[Game.state.ball].qty > 0) DB.balls[Game.state.ball].qty--;
+            if(Data.inventory[Game.state.ball] > 0) Data.inventory[Game.state.ball]--;
             UI.updateIcon();
-
-            Game.state.mode = 'fly';
-            Game.state.isCurve = Math.abs(Game.state.spin) > 2;
-            const b = document.getElementById('ball-container');
-            b.style.transition = 'none';
-            Game.state.vel.x = vx * 16;
-            Game.state.vel.y = vy * 16;
-            Game.state.vel.z = Math.abs(vy) * 26; 
-            Game.state.pos.z = 0;
+            Game.state.mode = 'fly'; Game.state.isCurve = Math.abs(Game.state.spin) > 2;
+            document.getElementById('ball-container').style.transition = 'none';
+            Game.state.vel.x = vx * 16; Game.state.vel.y = vy * 16; Game.state.vel.z = Math.abs(vy) * 26; Game.state.pos.z = 0;
         }
     };
 
     /* --- FX & UI --- */
     const FX = {
         sparkle: (x, y) => {
-            const el = document.createElement('div');
-            el.className = 'sparkle';
-            const ox = (Math.random()-0.5) * 80;
-            const oy = (Math.random()-0.5) * 80;
-            el.style.left = (x + ox) + 'px';
-            el.style.top = (y + oy) + 'px';
+            const el = document.createElement('div'); el.className = 'sparkle';
+            el.style.left = (x + (Math.random()-0.5)*80) + 'px'; el.style.top = (y + (Math.random()-0.5)*80) + 'px';
             document.body.appendChild(el);
-            requestAnimationFrame(() => {
-                el.style.transition = 'all 0.5s ease-out';
-                el.style.opacity = 1;
-                el.style.transform = 'scale(0)';
-                setTimeout(() => el.remove(), 500);
-            });
+            requestAnimationFrame(() => { el.style.transition = 'all 0.5s ease-out'; el.style.opacity = 1; el.style.transform = 'scale(0)'; setTimeout(() => el.remove(), 500); });
         }
     };
 
     const UI = {
         toast: (msg, col) => {
-            const t = document.getElementById('toast');
-            t.innerText = msg;
-            t.style.textShadow = `0 0 5px ${col}, 2px 2px 0 black`;
-            t.classList.add('visible');
-            setTimeout(() => t.classList.remove('visible'), 2000);
+            const t = document.getElementById('toast'); t.innerText = msg; t.style.textShadow = `0 0 5px ${col}, 2px 2px 0 black`;
+            t.classList.add('visible'); setTimeout(() => t.classList.remove('visible'), 2000);
+        },
+        updateHUD: () => {
+            document.getElementById('level-indicator').innerText = Data.user.level;
+            const pct = Math.min(100, (Data.user.xp / Data.user.nextLevelXp) * 100);
+            document.getElementById('xp-fill').style.width = pct + '%';
+            Game.save();
         },
         open: (type) => {
             if(Game.state.mode !== 'idle') return;
-            const list = document.getElementById('drawer-list');
-            list.innerHTML = '';
+            const list = document.getElementById('drawer-list'); list.innerHTML = '';
             document.getElementById('drawer-title').innerText = "SELECT " + type.toUpperCase();
-            const data = type === 'ball' ? DB.balls : DB.berries;
-            for(let key in data) {
-                const item = data[key];
-                const row = document.createElement('div');
-                row.className = 'drawer-item';
+            for(let key in Data.inventory) {
+                if ( (type==='ball' && !Meta.balls[key]) || (type==='berry' && !Meta.berries[key]) ) continue;
+                const img = type === 'ball' ? Meta.balls[key].img : Meta.berries[key].img;
+                const row = document.createElement('div'); row.className = 'drawer-item';
                 row.onclick = () => UI.select(type, key);
-                row.innerHTML = `<img src="${ASSETS.item + item.img}" width="40" style="margin-right:15px"><div style="flex:1"><b>${key}</b><br><small>x${item.qty}</small></div>`;
+                row.innerHTML = `<img src="${ASSETS.item + img}" width="40" style="margin-right:15px"><div style="flex:1"><b>${key}</b><br><small>x${Data.inventory[key]}</small></div>`;
                 list.appendChild(row);
             }
             document.getElementById('menu-drawer').classList.add('open');
         },
         close: () => document.getElementById('menu-drawer').classList.remove('open'),
         select: (type, key) => {
-            const item = type === 'ball' ? DB.balls[key] : DB.berries[key];
-            if(item.qty <= 0) return;
-            if(type === 'ball') {
-                Game.state.ball = key;
-                UI.updateIcon();
-            } else {
-                if(Game.state.berry) return;
-                item.qty--;
-                Game.state.berry = key;
-                document.getElementById('active-berry').src = ASSETS.item + item.img;
-                document.getElementById('active-berry').style.display = 'block';
-                UI.toast(key + " used!", "#E91E63");
+            if(Data.inventory[key] <= 0) return;
+            if(type === 'ball') { Game.state.ball = key; UI.updateIcon(); }
+            else { 
+                if(Game.state.berry) return; 
+                Data.inventory[key]--; Game.state.berry = key; 
+                document.getElementById('active-berry').src = ASSETS.item + Meta.berries[key].img; 
+                document.getElementById('active-berry').style.display = 'block'; 
+                UI.toast(key + " used!", "#E91E63"); 
             }
-            UI.close();
+            UI.close(); UI.updateHUD();
         },
         updateIcon: () => {
-            const img = DB.balls[Game.state.ball].img;
+            const img = Meta.balls[Game.state.ball].img;
             document.getElementById('current-ball-icon').src = ASSETS.item + img;
             document.getElementById('ball-sprite').style.backgroundImage = `url('${ASSETS.item + img}')`;
         },
-        // STORAGE UI
         openStorage: () => {
-            const grid = document.getElementById('storage-grid');
-            grid.innerHTML = '';
-            
-            DB.storage.forEach(p => {
-                const card = document.createElement('div');
-                card.className = 'storage-card';
-                card.innerHTML = `
-                    <div class="card-cp">CP ${p.cp}</div>
-                    <img class="card-img" src="${ASSETS.poke + p.id + '.png'}">
-                    <div class="card-name">${p.name}</div>
-                    <div class="card-date">${p.date}</div>
-                `;
+            const grid = document.getElementById('storage-grid'); grid.innerHTML = '';
+            // Sort by Newest
+            Data.storage.forEach(p => {
+                const card = document.createElement('div'); card.className = 'storage-card';
+                card.innerHTML = `<div class="card-cp">CP ${p.cp}</div><img class="card-img" src="${ASSETS.poke + p.id + '.png'}"><div class="card-name">${p.name}</div><div class="card-date">${p.date}</div>`;
                 grid.appendChild(card);
             });
-            
             document.getElementById('storage-screen').style.display = 'flex';
         },
         closeStorage: () => {
             document.getElementById('storage-screen').style.display = 'none';
-            // Trigger next pokemon automatically
             Game.nextPokemon();
         }
     };
