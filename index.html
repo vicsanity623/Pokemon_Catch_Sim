@@ -3,24 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    
     <!-- FORCE NO-CACHE -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-
-    <title>Pokémon GO Clone v23</title>
+    <title>Pokémon GO Clone v24</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#5CA0F0">
     <link rel="apple-touch-icon" href="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png">
-
     <style>
-        /* [KEEP ALL EXISTING CSS FROM V20] */
-        /* Paste the exact same CSS block from previous version here */
-        /* Or use the block below for convenience */
-        
+        /* [KEEP ALL EXISTING CSS FROM V23/V20] */
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #5CA0F0; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
         #game-stage { position: relative; width: 100%; height: 100%; overflow: hidden; background: linear-gradient(to bottom, #5CA0F0 0%, #C3E0F8 50%, #68A748 50%, #3B7E27 100%); perspective: 900px; }
         #version-tag { position: absolute; top: 10px; left: 10px; color: rgba(255, 255, 255, 0.7); font-size: 12px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); pointer-events: none; z-index: 1000; }
@@ -114,7 +108,6 @@
         .pd-dust-tiny { width: 8px; height: 8px; background: #9C27B0; border-radius: 50%; margin-right: 5px; }
         .pd-candy-tiny { width: 8px; height: 8px; background: orange; border-radius: 50%; margin-right: 5px; }
         .pd-close-fab { position: absolute; bottom: 30px; right: 50%; transform: translateX(50%); width: 50px; height: 50px; border-radius: 50%; background: rgba(0,0,0,0.1); border: 2px solid #888; color: #555; font-size: 24px; display: flex; justify-content: center; align-items: center; cursor: pointer; }
-
         /* Explore Specific CSS */
         .screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: none; }
         .screen.active { display: block; }
@@ -140,7 +133,6 @@
         .battle-mon { width: 60px; height: 60px; border: 2px solid #ddd; border-radius: 50%; overflow: hidden; }
         .battle-mon img { width: 100%; height: 100%; object-fit: cover; }
         .attack-anim { animation: lunge 0.5s; }
-        
         /* STORAGE CONTROLS */
         #storage-controls { padding: 10px 20px; background: white; display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #eee; }
         #search-input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc; font-size: 16px; outline: none; background: #f9f9f9; }
@@ -149,20 +141,17 @@
         #sort-menu.visible { display: flex; }
         .sort-opt { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; color: #333; cursor: pointer; }
         .sort-opt:active { background: #f0f0f0; }
-
     </style>
-    
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(registration => {
-                        if (registration.waiting) { registration.waiting.postMessage({ type: 'SKIP_WAITING' }); }
-                        registration.onupdatefound = () => {
-                            const newWorker = registration.installing;
-                            newWorker.onstatechange = () => { if (newWorker.state === 'installed' && navigator.serviceWorker.controller) { window.location.reload(); } };
-                        };
-                    });
+                navigator.serviceWorker.register('sw.js').then(reg => {
+                    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    reg.onupdatefound = () => {
+                        const newWorker = reg.installing;
+                        newWorker.onstatechange = () => { if (newWorker.state === 'installed' && navigator.serviceWorker.controller) window.location.reload(); };
+                    };
+                });
             });
             let refreshing;
             navigator.serviceWorker.addEventListener('controllerchange', () => { if (refreshing) return; refreshing = true; window.location.reload(); });
@@ -172,8 +161,7 @@
 <body>
 
 <div id="game-stage">
-    <div id="version-tag">v22.0</div>
-
+    <div id="version-tag">v24.0</div>
     <div id="player-hud">
         <div id="avatar-bubble" onclick="UI.openStorage()"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/trainers/red.png"></div>
         <div id="level-indicator">1</div>
@@ -181,18 +169,13 @@
     </div>
 </div>
 
-<!-- 1. EXPLORE SCREEN -->
+<!-- SCREENS -->
 <div id="explore-screen" class="screen active">
     <div id="world-map"></div>
-    <!-- PIKACHU AVATAR -->
     <img id="player-avatar" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png">
-    
-    <div id="joystick-zone">
-        <div id="joystick-knob"></div>
-    </div>
+    <div id="joystick-zone"><div id="joystick-knob"></div></div>
 </div>
 
-<!-- 2. CATCH SCREEN -->
 <div id="catch-screen" class="screen">
     <div id="game-stage" style="background:none;">
         <div id="pokemon-container">
@@ -208,27 +191,20 @@
     </div>
 </div>
 
-<!-- 3. UI LAYER -->
 <div id="ui-layer">
     <div id="toast">Excellent!</div>
-
     <div id="gameplay-ui" style="display:none;">
         <div id="btn-berry" class="ui-btn" onclick="UI.open('berry')"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/razz-berry.png" width="36"></div>
         <div id="btn-ball" class="ui-btn" onclick="UI.open('ball')"><img id="current-ball-icon" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" width="36"></div>
-        <!-- Run Button -->
         <div class="ui-btn" style="top: 20px; left: 20px; background:none; box-shadow:none; bottom:auto;" onclick="Explore.start()">
             <span style="font-size:30px; color:white; font-weight:bold; text-shadow:0 1px 3px black;">🏃</span>
         </div>
     </div>
-
-    <!-- Menus -->
     <div id="menu-drawer" class="drawer">
         <h3 id="drawer-title" style="text-align:center; color:#555; margin-top:0;">ITEMS</h3>
         <div id="drawer-list" style="max-height:60vh; overflow-y:auto;"></div>
         <button onclick="UI.close()" style="width:100%; padding:15px; margin-top:10px; border:none; background:#eee; font-weight:bold; border-radius:10px;">Close</button>
     </div>
-
-    <!-- Result Screen -->
     <div id="result-overlay" class="full-screen-overlay">
         <div class="header-text">Gotcha!</div>
         <img id="res-poke-img" src="" width="140" style="margin-bottom:15px;">
@@ -247,8 +223,6 @@
             <button id="btn-next" class="btn-action" onclick="Explore.start()">Return to Map ➔</button>
         </div>
     </div>
-
-    <!-- Level Up Screen -->
     <div id="levelup-overlay" class="full-screen-overlay">
         <div class="header-text" style="color:#FF9800">LEVEL UP!</div>
         <div id="new-level-num" style="font-size:80px; font-weight:900; color:#333; margin:20px 0;">2</div>
@@ -258,8 +232,6 @@
         </div>
         <button id="btn-claim" class="btn-action" onclick="Game.claimRewards()">CLAIM</button>
     </div>
-
-    <!-- Storage Screen -->
     <div id="storage-screen">
         <div id="storage-header">
             <span>Pokemon Storage</span>
@@ -277,8 +249,6 @@
         </div>
         <div id="storage-grid"></div>
     </div>
-    
-    <!-- RAID / GYM MODALS -->
     <div id="raid-modal" class="modal-screen">
         <div class="modal-card">
             <h2 id="raid-title" style="color:#9C27B0">RAID BATTLE</h2>
@@ -289,7 +259,6 @@
             <button onclick="Explore.closeRaid()" style="position:absolute; top:10px; right:10px; border:none; background:none; font-size:24px;">✕</button>
         </div>
     </div>
-
     <div id="gym-modal" class="modal-screen">
         <div class="modal-card">
             <h2 style="color:#2196F3">TEAM GYM</h2>
@@ -302,41 +271,58 @@
     </div>
 </div>
 
-<!-- EXTERNAL SCRIPTS -->
+<div id="pokemon-detail-screen"></div>
+
 <script>
     const ASSETS = { poke: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/", item: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/" };
-    const STORAGE_KEY = 'pokecatch_v23_save';
+    const STORAGE_KEY = 'pokecatch_v24_save';
     let Data = { user: { level: 1, xp: 0, nextLevelXp: 1000, candy: 0 }, inventory: { 'Poke Ball': 50, 'Great Ball': 10, 'Ultra Ball': 5, 'Master Ball': 1, 'Stardust': 500, 'Razz Berry': 10, 'Nanab Berry': 10, 'Pinap Berry': 10 }, storage: [], candyBag: {}, gymDefenders: [] };
-    const Meta = { balls: { 'Poke Ball': { img:'poke-ball.png', rate: 1.0 }, 'Great Ball': { img:'great-ball.png', rate: 1.5 }, 'Ultra Ball': { img:'ultra-ball.png', rate: 2.0 }, 'Master Ball': { img:'master-ball.png', rate: 100.0 } }, berries: { 'Razz Berry': { img:'razz-berry.png', mod: 1.5 }, 'Nanab Berry': { img:'nanab-berry.png', mod: 1.0 }, 'Pinap Berry': { img:'pinap-berry.png', mod: 1.0 } }, mons: [{id:25, n:'Pikachu'}, {id:1, n:'Bulbasaur'}, {id:4, n:'Charmander'}] };
+    const Meta = { balls: { 'Poke Ball': { img:'poke-ball.png', rate: 1.0 }, 'Great Ball': { img:'great-ball.png', rate: 1.5 }, 'Ultra Ball': { img:'ultra-ball.png', rate: 2.0 }, 'Master Ball': { img:'master-ball.png', rate: 100.0 } }, berries: { 'Razz Berry': { img:'razz-berry.png', mod: 1.5 }, 'Nanab Berry': { img:'nanab-berry.png', mod: 1.0 }, 'Pinap Berry': { img:'pinap-berry.png', mod: 1.0 } }, mons: [{id:25, n:'Pikachu'}] };
 
     const Game = {
         state: { mode: 'idle', ball: 'Poke Ball', berry: null, spin: 0, mon: null, pos: {x:0, y:0, z:0}, vel: {x:0, y:0, z:0}, rot: 0, throwGrade: null, isCurve: false, shakeTarget: 0, transitioning: false },
         save: () => localStorage.setItem(STORAGE_KEY, JSON.stringify(Data)),
-        
+        // --- STRICT BASE SPAWN LOGIC ---
         spawn: (idOverride) => {
             Game.state.transitioning = false;
-            // DYNAMIC SPAWN (Safe for Map & Raids)
+            
             function trySpawn() {
                 const id = idOverride || Math.floor(Math.random() * 1025) + 1;
                 const cp = Math.floor(Math.random() * 2500) + 100;
                 
+                // Fetch Species Data First
                 fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`).then(res=>res.json()).then(speciesData => {
-                    // LEGENDARY BLOCKER (Unless idOverride (Raid) is active)
-                    if (!idOverride) {
-                        if (speciesData.is_legendary || speciesData.is_mythical || speciesData.evolves_from_species !== null) {
-                            trySpawn(); return;
-                        }
-                    }
-                    // Valid
-                    const cleanName = speciesData.name.split('-').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
-                    Game.state.mon = { id: id, n: cleanName, cp: cp, family: cleanName }; 
-                    Game.state.berry = null;
+                    // 1. LEGENDARY BLOCK
+                    if (!idOverride && (speciesData.is_legendary || speciesData.is_mythical)) { trySpawn(); return; }
+                    
+                    // 2. EVOLUTION BLOCK (Ensure Base Form)
+                    if (!idOverride && speciesData.evolves_from_species !== null) { trySpawn(); return; }
 
+                    const cleanName = speciesData.name.split('-').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+                    
+                    // 3. FETCH ROOT FAMILY FOR CANDY
                     fetch(speciesData.evolution_chain.url).then(r=>r.json()).then(evoData => {
-                        const chain = evoData.chain; let nextEvoId = null; const getUrlId = (url) => url.split('/').filter(Boolean).pop();
-                        if (chain.evolves_to.length > 0 && getUrlId(chain.species.url) == id) { const evo = chain.evolves_to[Math.floor(Math.random() * chain.evolves_to.length)]; nextEvoId = getUrlId(evo.species.url); }
+                        // Get root name for candy family
+                        const familyName = evoData.chain.species.name.split('-').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' ');
+                        
+                        Game.state.mon = { id: id, n: cleanName, cp: cp, family: familyName }; // Store Root Family!
+                        
+                        // Set Next Evolution
+                        let nextEvoId = null; 
+                        const getUrlId = (url) => url.split('/').filter(Boolean).pop();
+                        const findNode = (node) => {
+                            if(getUrlId(node.species.url) == id && node.evolves_to.length > 0) {
+                                const next = node.evolves_to[Math.floor(Math.random()*node.evolves_to.length)];
+                                nextEvoId = getUrlId(next.species.url);
+                            } else {
+                                node.evolves_to.forEach(findNode);
+                            }
+                        };
+                        findNode(evoData.chain);
                         Game.state.mon.nextId = nextEvoId;
-                    }).catch(()=>{});
+                    }).catch(e=>{ Game.state.mon = { id: id, n: cleanName, cp: cp, family: cleanName }; });
+
+                    Game.state.berry = null;
 
                     const sprite = document.getElementById('pokemon-sprite'); 
                     sprite.style.opacity = 0; 
@@ -357,59 +343,22 @@
             }
             trySpawn();
         },
-
         resetBall: () => { Game.state.mode='idle'; Game.state.spin=0; Game.state.rot=0; Game.state.throwGrade=null; Game.state.isCurve=false; const b=document.getElementById('ball-container'); const g=document.getElementById('ball-sprite'); b.style.transition='all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)'; b.style.left='50%'; b.style.top='auto'; b.style.bottom='10%'; b.style.transform='translate3d(-50%, 0, 0) scale(1)'; b.style.display='block'; g.style.transform='rotate(0deg)'; },
         autoSwitchBall: () => { const order=['Poke Ball', 'Great Ball', 'Ultra Ball', 'Master Ball']; for(let ball of order){ if(Data.inventory[ball]>0){ Game.state.ball=ball; UI.updateIcon(); UI.spawnFloatText(`Switched to ${ball}!`, window.innerWidth/2, window.innerHeight-100, "#2196F3"); return true; } } return false; },
         loop: () => { if (Game.state.mode === 'hold') { if (Math.abs(Game.state.spin) > 0.5) { Game.state.rot += Game.state.spin * 15; document.getElementById('ball-sprite').style.transform = `rotate(${Game.state.rot}deg)`; if(Math.abs(Game.state.spin) > 2 && Math.random() > 0.6) FX.sparkle(Game.state.pos.x, Game.state.pos.y); } Game.state.spin *= 0.9; } else if (Game.state.mode === 'fly') { const s = Game.state; s.pos.x += s.vel.x; s.pos.y += s.vel.y; s.pos.z += s.vel.z; s.vel.y += 0.85; s.vel.z *= 0.98; s.vel.x += s.spin * 0.45; s.rot += s.spin * 20 + 5; const scale = 900 / (900 + s.pos.z); const b = document.getElementById('ball-container'); const g = document.getElementById('ball-sprite'); b.style.left = s.pos.x + 'px'; b.style.top = s.pos.y + 'px'; b.style.transform = `translate3d(-50%, -50%, 0) scale(${scale})`; g.style.transform = `rotate(${s.rot}deg)`; if (s.pos.z > 250 && s.pos.z < 380) { const rect = document.getElementById('pokemon-container').getBoundingClientRect(); if (s.pos.x > rect.left && s.pos.x < rect.right && s.pos.y > rect.top && s.pos.y < rect.bottom) Game.hit(); } if (s.pos.z > 450 || s.pos.y > window.innerHeight) Game.miss(); } requestAnimationFrame(Game.loop); },
         hit: () => { Game.state.mode = 'catch'; const outer = document.getElementById('ring-outer').offsetWidth; const target = document.getElementById('ring-target').offsetWidth; const ratio = target/outer; const ballRect = document.getElementById('ball-container').getBoundingClientRect(); const bx = ballRect.left + ballRect.width/2; const by = ballRect.top + ballRect.height/2; const ringRect = document.getElementById('ring-target').getBoundingClientRect(); const rx = ringRect.left + ringRect.width/2; const ry = ringRect.top + ringRect.height/2; const dist = Math.sqrt(Math.pow(bx - rx, 2) + Math.pow(by - ry, 2)); const innerRadius = ringRect.width / 2; const landedInRing = dist < (innerRadius + 20); let msg="", col="white", gradeBonus=1.0; if (landedInRing) { if(ratio < 0.3) { msg="Excellent!"; col="#FFD700"; Game.state.throwGrade="Excellent"; gradeBonus=1.85; } else if(ratio < 0.7) { msg="Great!"; col="#F44336"; Game.state.throwGrade="Great"; gradeBonus=1.5; } else { msg="Nice!"; col="white"; Game.state.throwGrade="Nice"; gradeBonus=1.2; } } else { Game.state.throwGrade = null; } if(msg) UI.spawnFloatText(msg, bx, by, col); let base = 0.40; const ballRate = Meta.balls[Game.state.ball].rate; const berryMod = Game.state.berry ? Meta.berries[Game.state.berry].mod : 1.0; const curveMod = Game.state.isCurve ? 1.7 : 1.0; let chance = base * ballRate * berryMod * gradeBonus * curveMod; if (Game.state.ball === 'Master Ball') chance = 100; Game.state.shakeTarget = (Math.random() < chance) ? 3 : Math.floor(Math.random() * 3); document.getElementById('ring-container').style.display = 'none'; const b = document.getElementById('ball-container'); const p = document.getElementById('pokemon-container').getBoundingClientRect(); b.style.transition = 'all 0.1s linear'; b.style.left = (p.left + p.width/2) + 'px'; b.style.top = (p.top + p.height/2) + 'px'; b.style.transform = `translate(-50%, -50%) scale(0.7)`; const sprite = document.getElementById('pokemon-sprite'); sprite.style.transition = 'all 0.4s ease-in'; sprite.style.transform = 'scale(0) rotate(270deg)'; sprite.style.opacity = 0; setTimeout(() => { b.style.transition = 'top 0.4s ease-out'; b.style.top = (p.bottom - 40) + 'px'; setTimeout(() => Game.playShake(0), 400); }, 400); },
-        playShake: (count) => {
-            const b = document.getElementById('ball-sprite');
-            // FIX: Remove class first to allow re-trigger
-            b.parentElement.classList.remove('shake');
-            void b.parentElement.offsetWidth; // Force Reflow (Reset animation)
-
-            if(count >= 3) {
-                document.getElementById('ball-container').classList.add('catch-flash');
-                Data.storage.unshift({
-                    id: Game.state.mon.id, name: Game.state.mon.n,
-                    cp: Game.state.mon.cp, family: Game.state.mon.family,
-                    nextId: Game.state.mon.nextId, date: new Date().toLocaleDateString()
-                });
-                Game.save();
-                setTimeout(() => {
-                    document.getElementById('ball-container').classList.remove('catch-flash');
-                    Game.showResults();
-                }, 1000);
-                return;
-            }
-            
-            if(count < Game.state.shakeTarget) {
-                // Add class back to trigger animation
-                b.parentElement.classList.add('shake');
-                setTimeout(() => Game.playShake(count + 1), 1000);
-            } else {
-                UI.spawnFloatText("Escaped!", window.innerWidth/2, window.innerHeight/2, "white");
-                document.getElementById('ball-container').style.display = 'none';
-                const s = document.getElementById('pokemon-sprite');
-                s.style.transform = 'scale(1)'; s.style.opacity = 1;
-                document.getElementById('ring-container').style.display = 'flex';
-                Game.state.berry = null; 
-                document.getElementById('active-berry').style.display = 'none';
-                setTimeout(Game.resetBall, 1000);
-            }
-        },
+        playShake: (count) => { const b = document.getElementById('ball-sprite'); b.parentElement.classList.remove('shake'); void b.parentElement.offsetWidth; if(count >= 3) { document.getElementById('ball-container').classList.add('catch-flash'); Data.storage.unshift({ id: Game.state.mon.id, name: Game.state.mon.n, cp: Game.state.mon.cp, family: Game.state.mon.family, nextId: Game.state.mon.nextId, date: new Date().toLocaleDateString() }); Game.save(); setTimeout(() => { document.getElementById('ball-container').classList.remove('catch-flash'); Game.showResults(); }, 1000); return; } if(count < Game.state.shakeTarget) { b.parentElement.classList.add('shake'); setTimeout(() => Game.playShake(count+1), 1000); } else { UI.spawnFloatText("Escaped!", window.innerWidth/2, window.innerHeight/2, "white"); document.getElementById('ball-container').style.display = 'none'; const s = document.getElementById('pokemon-sprite'); s.style.transform = 'scale(1)'; s.style.opacity = 1; document.getElementById('ring-container').style.display = 'flex'; Game.state.berry = null; document.getElementById('active-berry').style.display = 'none'; setTimeout(Game.resetBall, 1000); } },
         showResults: () => { const s = Game.state; const res = document.getElementById('result-overlay'); const list = document.getElementById('bonus-list'); const spriteSrc = document.getElementById('pokemon-sprite').src; document.getElementById('res-poke-img').src = spriteSrc; document.getElementById('res-poke-name').innerText = s.mon.n + " (CP " + s.mon.cp + ")"; let xp = 100; list.innerHTML = ''; if (s.throwGrade) { let bonus = s.throwGrade === 'Excellent' ? 1000 : (s.throwGrade === 'Great' ? 500 : 100); xp += bonus; list.innerHTML += `<div class="stat-row bonus-row"><span>${s.throwGrade} Throw</span><span>+${bonus} XP</span></div>`; } if (s.isCurve) { xp += 20; list.innerHTML += `<div class="stat-row bonus-row"><span>Curveball</span><span>+20 XP</span></div>`; } document.getElementById('total-xp-val').innerText = xp + " XP"; let candy = s.berry === 'Pinap Berry' ? 6 : 3; document.getElementById('res-candy').innerText = "+" + candy; const family = s.mon.family; if (!Data.candyBag) Data.candyBag = {}; if (!Data.candyBag[family]) Data.candyBag[family] = 0; Data.candyBag[family] += candy; Data.user.xp += xp; Data.inventory['Stardust'] += 100; if (Data.user.xp >= Data.user.nextLevelXp) { setTimeout(Game.levelUp, 1000); } else { Game.save(); UI.updateHUD(); } document.getElementById('gameplay-ui').style.display = 'none'; res.style.display = 'flex'; setTimeout(() => res.classList.add('visible'), 10); },
         levelUp: () => { document.getElementById('result-overlay').classList.remove('visible'); document.getElementById('result-overlay').style.display = 'none'; Data.user.level++; Data.user.xp -= Data.user.nextLevelXp; Data.user.nextLevelXp = Math.floor(Data.user.nextLevelXp * 1.5); const rewards = []; for(let i=0; i<5; i++) { const keys = Object.keys(Data.inventory); const item = keys[Math.floor(Math.random()*keys.length)]; if(item === 'Master Ball' || item === 'Stardust') continue; Data.inventory[item] += 5; rewards.push(item); } Game.save(); UI.updateHUD(); document.getElementById('new-level-num').innerText = Data.user.level; const grid = document.getElementById('lvl-up-rewards'); grid.innerHTML = ''; const counts = {}; rewards.forEach(x => { counts[x] = (counts[x] || 0) + 5; }); for (let k in counts) { let img = ""; if(Meta.balls[k]) img = Meta.balls[k].img; else img = Meta.berries[k].img; grid.innerHTML += `<div class="reward-item"><img src="${ASSETS.item + img}" width="40"><span style="font-weight:bold; margin-top:5px;">+${counts[k]}</span></div>`; } const lvl = document.getElementById('levelup-overlay'); lvl.style.display = 'flex'; setTimeout(() => lvl.classList.add('visible'), 10); },
         claimRewards: () => { const lvl = document.getElementById('levelup-overlay'); lvl.classList.remove('visible'); setTimeout(() => { lvl.style.display = 'none'; Game.nextPokemon(); }, 300); },
         nextPokemon: () => { if (Game.state.transitioning) return; Game.state.transitioning = true; const res = document.getElementById('result-overlay'); res.classList.remove('visible'); setTimeout(() => { res.style.display = 'none'; Explore.start(); }, 300); },
         miss: () => { Game.state.mode = 'idle'; setTimeout(Game.resetBall, 600); }
     };
-
+    /* UI + INPUT (Same as v22) */
     const Input = { active: false, hist: [], start: (e) => { if (Game.state.mode !== 'idle') return; const p = e.touches ? e.touches[0] : e; const rect = document.getElementById('ball-container').getBoundingClientRect(); const pad = 120; if (p.clientX < rect.left - pad || p.clientX > rect.right + pad || p.clientY < rect.top - pad) return; e.preventDefault(); Input.active = true; Game.state.mode = 'hold'; Input.hist = []; const b = document.getElementById('ball-container'); b.style.transition = 'none'; b.style.transform = `translate3d(-50%, -50%, 0) scale(1.15)`; Input.track(p.clientX, p.clientY); }, move: (e) => { if (Input.active) { e.preventDefault(); const p = e.touches ? e.touches[0] : e; Input.track(p.clientX, p.clientY); } }, track: (x, y) => { const now = Date.now(); Input.hist.push({x, y, t:now}); if (Input.hist.length > 8) Input.hist.shift(); Game.state.pos.x = x; Game.state.pos.y = y; if (Input.hist.length > 3) { const prev = Input.hist[Input.hist.length-2]; Game.state.spin = (x - prev.x) * 0.8; } }, end: (e) => { if (!Input.active) return; Input.active = false; const hist = Input.hist; if(hist.length < 2 || Date.now() - hist[hist.length-1].t > 150) { Game.resetBall(); return; } const vx = (hist[hist.length-1].x - hist[0].x) / (hist[hist.length-1].t - hist[0].t); const vy = (hist[hist.length-1].y - hist[0].y) / (hist[hist.length-1].t - hist[0].t); if (vy > -0.5) { Game.resetBall(); return; } if(Data.inventory[Game.state.ball] <= 0) { if(!Game.autoSwitchBall()) { UI.spawnFloatText("Out of Balls!", window.innerWidth/2, window.innerHeight-100, "red"); Game.resetBall(); return; } } Data.inventory[Game.state.ball]--; UI.updateIcon(); Game.state.mode = 'fly'; Game.state.isCurve = Math.abs(Game.state.spin) > 0.5; document.getElementById('ball-container').style.transition = 'none'; Game.state.vel.x = vx * 16; Game.state.vel.y = vy * 16; Game.state.vel.z = Math.abs(vy) * 26; Game.state.pos.z = 0; } };
-
     const FX = { sparkle: (x, y) => { const el = document.createElement('div'); el.className = 'sparkle'; el.style.left = (x + (Math.random()-0.5)*80) + 'px'; el.style.top = (y + (Math.random()-0.5)*80) + 'px'; document.body.appendChild(el); requestAnimationFrame(() => { el.style.transition = 'all 0.5s ease-out'; el.style.opacity = 1; el.style.transform = 'scale(0)'; setTimeout(() => el.remove(), 500); }); } };
     const UI = { sortMode: 'recent', toggleSortMenu: () => { document.getElementById('sort-menu').style.display = document.getElementById('sort-menu').style.display === 'flex' ? 'none' : 'flex'; }, setSort: (mode) => { UI.sortMode = mode; document.getElementById('sort-menu').style.display = 'none'; UI.renderStorageList(); }, filterStorage: () => { UI.renderStorageList(); }, spawnFloatText: (text, x, y, color) => { const el = document.createElement('div'); el.className = 'float-text'; el.innerText = text; el.style.left = x + 'px'; el.style.top = y + 'px'; if(color) el.style.color = color; document.body.appendChild(el); setTimeout(() => el.remove(), 1500); }, updateHUD: () => { document.getElementById('level-indicator').innerText = Data.user.level; const pct = Math.min(100, (Data.user.xp / Data.user.nextLevelXp) * 100); document.getElementById('xp-fill').style.width = pct + '%'; Game.save(); }, open: (type) => { if(Game.state.mode !== 'idle') return; const list = document.getElementById('drawer-list'); list.innerHTML = ''; document.getElementById('drawer-title').innerText = "SELECT " + type.toUpperCase(); for(let key in Data.inventory) { if (key === 'Stardust') continue; if ( (type==='ball' && !Meta.balls[key]) || (type==='berry' && !Meta.berries[key]) ) continue; const img = type === 'ball' ? Meta.balls[key].img : Meta.berries[key].img; const row = document.createElement('div'); row.className = 'drawer-item'; row.onclick = () => UI.select(type, key); row.innerHTML = `<img src="${ASSETS.item + img}" width="40" style="margin-right:15px"><div style="flex:1"><b>${key}</b><br><small>x${Data.inventory[key]}</small></div>`; list.appendChild(row); } document.getElementById('menu-drawer').classList.add('open'); }, close: () => document.getElementById('menu-drawer').classList.remove('open'), select: (type, key) => { if(Data.inventory[key] <= 0) return; if(type === 'ball') { Game.state.ball = key; UI.updateIcon(); } else { if(Game.state.berry) return; Data.inventory[key]--; Game.state.berry = key; document.getElementById('active-berry').src = ASSETS.item + Meta.berries[key].img; document.getElementById('active-berry').style.display = 'block'; UI.spawnFloatText(key + "!", window.innerWidth/2, window.innerHeight/2, "#E91E63"); } UI.close(); UI.updateHUD(); }, updateIcon: () => { const img = Meta.balls[Game.state.ball].img; document.getElementById('current-ball-icon').src = ASSETS.item + img; document.getElementById('ball-sprite').style.backgroundImage = `url('${ASSETS.item + img}')`; }, openStorage: () => { document.getElementById('storage-screen').style.display = 'flex'; UI.renderStorageList(); }, renderStorageList: () => { const grid = document.getElementById('storage-grid'); grid.innerHTML = ''; const query = document.getElementById('search-input').value.toLowerCase(); let list = Data.storage.filter(p => p.name.toLowerCase().includes(query)); if (UI.sortMode === 'cp') { list.sort((a, b) => b.cp - a.cp); } else if (UI.sortMode === 'number') { list.sort((a, b) => a.id - b.id); } else if (UI.sortMode === 'name') { list.sort((a, b) => a.name.localeCompare(b.name)); } list.forEach(p => { const originalIndex = Data.storage.indexOf(p); const card = document.createElement('div'); card.className = 'storage-card'; card.onclick = () => PokeDetail.open(originalIndex); card.innerHTML = `<div class="card-cp">CP ${p.cp}</div><img class="card-img" src="${ASSETS.poke + p.id + '.png'}"><div class="card-name">${p.name}</div><div class="card-date">${p.date}</div>`; grid.appendChild(card); }); }, closeStorage: () => { document.getElementById('storage-screen').style.display = 'none'; } };
-
+    
     // MAIN ENTRY
     window.onload = () => {
         const saved = localStorage.getItem(STORAGE_KEY);
@@ -418,7 +367,7 @@
         if (!Data.user.candy) Data.user.candy = 0;
         if (!Data.candyBag) Data.candyBag = {};
 
-        Explore.init(); // START IN EXPLORE MODE
+        Explore.init();
         requestAnimationFrame(Game.loop);
         const stage = document.body;
         stage.addEventListener('touchstart', Input.start, {passive: false});
@@ -431,7 +380,6 @@
 </script>
 
 <!-- EXTERNAL FILES -->
-<div id="pokemon-detail-screen"></div>
 <script src="explore.js"></script>
 <script src="pokemon.js"></script>
 
