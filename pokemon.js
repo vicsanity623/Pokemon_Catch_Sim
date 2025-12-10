@@ -28,8 +28,10 @@ const PokeDetail = {
         const hp = Math.floor(p.cp / 10);
         
         const dust = Data.inventory['Stardust'] || 0;
-        const candy = Data.user.candy || 0; 
-        const candyName = p.family || p.name;
+        
+        // FIX: Ensure we look up the candy using the exact family name saved in Data.candyBag
+        const familyName = p.family || p.name;
+        const candy = (Data.candyBag && Data.candyBag[familyName]) ? Data.candyBag[familyName] : 0;
 
         // CHECK IF EVOLUTION IS AVAILABLE FROM SAVED DATA
         const canEvolve = p.nextId && p.nextId !== null;
@@ -80,7 +82,7 @@ const PokeDetail = {
                     <div class="pd-res">
                         <div class="pd-candy-icon"></div>
                         <span>${candy}</span>
-                        <span class="pd-res-label">${candyName.toUpperCase()} CANDY</span>
+                        <span class="pd-res-label">${familyName.toUpperCase()} CANDY</span>
                     </div>
                 </div>
 
