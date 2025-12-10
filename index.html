@@ -7,7 +7,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>Pokémon GO Clone v24</title>
+    <title>Pokémon GO Clone v25</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -161,7 +161,7 @@
 <body>
 
 <div id="game-stage">
-    <div id="version-tag">v24.0</div>
+    <div id="version-tag">v25.0</div>
     <div id="player-hud">
         <div id="avatar-bubble" onclick="UI.openStorage()"><img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/trainers/red.png"></div>
         <div id="level-indicator">1</div>
@@ -275,8 +275,15 @@
 
 <script>
     const ASSETS = { poke: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/", item: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/" };
-    const STORAGE_KEY = 'pokecatch_v24_save';
-    let Data = { user: { level: 1, xp: 0, nextLevelXp: 1000, candy: 0 }, inventory: { 'Poke Ball': 50, 'Great Ball': 10, 'Ultra Ball': 5, 'Master Ball': 1, 'Stardust': 500, 'Razz Berry': 10, 'Nanab Berry': 10, 'Pinap Berry': 10 }, storage: [], candyBag: {}, gymDefenders: [] };
+    const STORAGE_KEY = 'pokecatch_v25_save';
+    let Data = { 
+        user: { level: 1, xp: 0, nextLevelXp: 1000, candy: 0 }, 
+        inventory: { 'Poke Ball': 50, 'Great Ball': 10, 'Ultra Ball': 5, 'Master Ball': 1, 'Stardust': 500, 'Razz Berry': 10, 'Nanab Berry': 10, 'Pinap Berry': 10 }, 
+        storage: [], 
+        candyBag: {}, 
+        gymDefenders: [],
+        mapData: [] // <--- THIS IS THE CRITICAL ADDITION FOR MAP SAVING
+    };
     const Meta = { balls: { 'Poke Ball': { img:'poke-ball.png', rate: 1.0 }, 'Great Ball': { img:'great-ball.png', rate: 1.5 }, 'Ultra Ball': { img:'ultra-ball.png', rate: 2.0 }, 'Master Ball': { img:'master-ball.png', rate: 100.0 } }, berries: { 'Razz Berry': { img:'razz-berry.png', mod: 1.5 }, 'Nanab Berry': { img:'nanab-berry.png', mod: 1.0 }, 'Pinap Berry': { img:'pinap-berry.png', mod: 1.0 } }, mons: [{id:25, n:'Pikachu'}] };
 
     const Game = {
