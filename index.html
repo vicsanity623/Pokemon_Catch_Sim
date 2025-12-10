@@ -9,7 +9,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <title>Pokémon Catch Sim v19</title>
+    <title>Pokémon Catch Sim v20</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -312,6 +312,29 @@
         .card-img { width: 80px; height: 80px; object-fit: contain; }
         .card-name { font-size: 13px; color: #333; font-weight: 500; }
         .card-date { font-size: 10px; color: #999; margin-top: 2px; }
+        
+        #storage-controls {
+            padding: 10px 20px; background: white;
+            display: flex; gap: 10px; align-items: center;
+            border-bottom: 1px solid #eee;
+        }
+        #search-input {
+            flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ccc;
+            font-size: 16px; outline: none; background: #f9f9f9;
+        }
+        #sort-btn {
+            background: #fff; border: 1px solid #ccc; border-radius: 50%;
+            width: 40px; height: 40px; font-size: 20px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+        }
+        #sort-menu {
+            position: absolute; top: 120px; right: 20px; width: 150px;
+            background: white; border-radius: 10px; box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+            display: none; z-index: 650; flex-direction: column; overflow: hidden;
+        }
+        #sort-menu.visible { display: flex; }
+        .sort-opt { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; color: #333; cursor: pointer; }
+        .sort-opt:active { background: #f0f0f0; }
 
         /* Animations */
         .shake { animation: shake 0.6s cubic-bezier(.36,.07,.19,.97) both; }
@@ -422,7 +445,7 @@
 <body>
 
 <div id="game-stage">
-    <div id="version-tag">v19.0</div>
+    <div id="version-tag">v20.0</div>
 
     <div id="player-hud">
         <div id="avatar-bubble">
@@ -516,9 +539,24 @@
     <!-- Storage Screen -->
     <div id="storage-screen">
         <div id="storage-header">
-            <span>Pokemon Storage</span>
+            <span>Pokémon Storage</span>
             <button onclick="UI.closeStorage()" style="border:none; background:none; font-size:24px; color:#555; padding:0 10px;">✕</button>
         </div>
+        
+        <!-- NEW CONTROLS -->
+        <div id="storage-controls">
+            <input type="text" id="search-input" placeholder="Search" onkeyup="UI.filterStorage()">
+            <button id="sort-btn" onclick="UI.toggleSortMenu()">⇅</button>
+        </div>
+
+        <!-- SORT DROPDOWN -->
+        <div id="sort-menu">
+            <div class="sort-opt" onclick="UI.setSort('recent')">Recent</div>
+            <div class="sort-opt" onclick="UI.setSort('cp')">Highest CP</div>
+            <div class="sort-opt" onclick="UI.setSort('number')">Number #</div>
+            <div class="sort-opt" onclick="UI.setSort('name')">Name A-Z</div>
+        </div>
+
         <div id="storage-grid"></div>
     </div>
 </div>
@@ -1083,17 +1121,65 @@
             document.getElementById('current-ball-icon').src = ASSETS.item + img;
             document.getElementById('ball-sprite').style.backgroundImage = `url('${ASSETS.item + img}')`;
         },
+        sortMode: 'recent', 
+        
+        toggleSortMenu: () => {
+            const menu = document.getElementById('sort-menu');
+            menu.classList.toggle('visible');
+        },
+
+        setSort: (mode) => {
+            UI.sortMode = mode;
+            document.getElementById('sort-menu').classList.remove('visible');
+            UI.renderStorageList(); // Re-render with new sort
+        },
+
+        filterStorage: () => {
+            UI.renderStorageList(); // Re-render on search typing
+        },
+
         openStorage: () => {
-            const grid = document.getElementById('storage-grid'); grid.innerHTML = '';
-            // CORRECTED LOOP LOGIC
-            Data.storage.forEach((p, index) => {
+            document.getElementById('storage-screen').style.display = 'flex';
+            UI.renderStorageList();
+        },
+
+        renderStorageList: () => {
+            const grid = document.getElementById('storage-grid'); 
+            grid.innerHTML = '';
+            const query = document.getElementById('search-input').value.toLowerCase();
+
+            // 1. Filter
+            let list = Data.storage.filter(p => p.name.toLowerCase().includes(query));
+
+            // 2. Sort
+            if (UI.sortMode === 'recent') {
+                // Assuming newer catches are at the beginning (unshift)
+                // If sorting needs to be strict by date:
+                // list.sort((a,b) => new Date(b.date) - new Date(a.date));
+                // But since we unshift(), array order IS recent order.
+            } 
+            else if (UI.sortMode === 'cp') {
+                list.sort((a, b) => b.cp - a.cp);
+            } 
+            else if (UI.sortMode === 'number') {
+                list.sort((a, b) => a.id - b.id);
+            } 
+            else if (UI.sortMode === 'name') {
+                list.sort((a, b) => a.name.localeCompare(b.name));
+            }
+
+            // 3. Render
+            list.forEach(p => {
+                // Find original index in Data.storage for editing reference
+                const originalIndex = Data.storage.indexOf(p);
+                
                 const card = document.createElement('div'); card.className = 'storage-card';
-                card.onclick = () => PokeDetail.open(index); // CALLS THE NEW POKEMON.JS LOGIC
+                card.onclick = () => PokeDetail.open(originalIndex); 
                 card.innerHTML = `<div class="card-cp">CP ${p.cp}</div><img class="card-img" src="${ASSETS.poke + p.id + '.png'}"><div class="card-name">${p.name}</div><div class="card-date">${p.date}</div>`;
                 grid.appendChild(card);
             });
-            document.getElementById('storage-screen').style.display = 'flex';
         },
+
         closeStorage: () => {
             document.getElementById('storage-screen').style.display = 'none';
         }
