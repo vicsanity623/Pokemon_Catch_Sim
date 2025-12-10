@@ -9,7 +9,7 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <title>Pokémon Catch Sim v16.1</title>
+    <title>Pokémon Catch Sim v18</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -171,6 +171,7 @@
         #btn-berry { left: 25px; }
         #btn-ball { right: 25px; }
 
+        /* Floating Text */
         .float-text {
             position: absolute;
             font-family: 'Arial Black', sans-serif;
@@ -421,7 +422,7 @@
 <body>
 
 <div id="game-stage">
-    <div id="version-tag">v16.1</div>
+    <div id="version-tag">v18.0</div>
 
     <div id="player-hud">
         <div id="avatar-bubble">
@@ -543,7 +544,8 @@
             'Stardust': 500, // Starting Stardust
             'Razz Berry': 10, 'Nanab Berry': 10, 'Pinap Berry': 10
         },
-        storage: []
+        storage: [],
+        candyBag: {} // NEW: Specific Candy Storage
     };
 
     const Meta = {
@@ -578,9 +580,9 @@
             const saved = localStorage.getItem(STORAGE_KEY);
             if (saved) Data = JSON.parse(saved);
             
-            // Ensure Stardust/Candy init for old saves
+            // Ensure Stardust/CandyBag init for old saves
             if (!Data.inventory['Stardust']) Data.inventory['Stardust'] = 500;
-            if (!Data.user.candy) Data.user.candy = 0;
+            if (!Data.candyBag) Data.candyBag = {};
 
             UI.updateHUD();
             Game.spawn();
@@ -884,9 +886,14 @@
             let candy = s.berry === 'Pinap Berry' ? 6 : 3;
             document.getElementById('res-candy').innerText = "+" + candy;
 
+            // Update Specific Candy
+            const family = s.mon.family;
+            if (!Data.candyBag) Data.candyBag = {}; 
+            if (!Data.candyBag[family]) Data.candyBag[family] = 0;
+            Data.candyBag[family] += candy;
+
             Data.user.xp += xp;
             Data.inventory['Stardust'] += 100; 
-            Data.user.candy += candy;
 
             if (Data.user.xp >= Data.user.nextLevelXp) {
                 setTimeout(Game.levelUp, 1000);
@@ -997,7 +1004,7 @@
             const vy = (hist[hist.length-1].y - hist[0].y) / (hist[hist.length-1].t - hist[0].t);
             if (vy > -0.5) { Game.resetBall(); return; }
             
-            // INFINITE AMMO GLITCH FIX
+            // INFINITE AMMO GLITCH FIX + AUTO SWITCH
             if(Data.inventory[Game.state.ball] <= 0) {
                 if(!Game.autoSwitchBall()) {
                     UI.spawnFloatText("Out of Balls!", window.innerWidth/2, window.innerHeight-100, "red");
@@ -1006,6 +1013,7 @@
                 }
             }
             
+            // Consume Ball
             Data.inventory[Game.state.ball]--;
             UI.updateIcon();
 
@@ -1077,9 +1085,10 @@
         },
         openStorage: () => {
             const grid = document.getElementById('storage-grid'); grid.innerHTML = '';
+            // CORRECTED LOOP LOGIC
             Data.storage.forEach((p, index) => {
                 const card = document.createElement('div'); card.className = 'storage-card';
-                card.onclick = () => PokeDetail.open(index); 
+                card.onclick = () => PokeDetail.open(index); // CALLS THE NEW POKEMON.JS LOGIC
                 card.innerHTML = `<div class="card-cp">CP ${p.cp}</div><img class="card-img" src="${ASSETS.poke + p.id + '.png'}"><div class="card-name">${p.name}</div><div class="card-date">${p.date}</div>`;
                 grid.appendChild(card);
             });
