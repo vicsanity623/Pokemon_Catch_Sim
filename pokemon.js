@@ -1,23 +1,7 @@
 const PokeDetail = {
     currentIndex: null,
     
-    // Hardcoded Evolutions for the "Starter" set (Expanded for the demo logic)
-    // In a real full app, this would query an API, but for this persistent local demo we map the common ones.
-    evolutions: {
-        1: 2, 2: 3, // Bulbasaur -> Ivysaur -> Venusaur
-        4: 5, 5: 6, // Charmander -> Charmeleon -> Charizard
-        7: 8, 8: 9, // Squirtle -> Wartortle -> Blastoise
-        25: 26,     // Pikachu -> Raichu
-        133: 134,   // Eevee -> Vaporeon
-        92: 93, 93: 94, // Gastly -> Haunter -> Gengar
-        
-        // Add a few more common base forms for the demo feel
-        172: 25,    // Pichu -> Pikachu (If we wanted babies, but we are spawning base)
-        10: 11, 11: 12, // Caterpie
-        13: 14, 14: 15, // Weedle
-        16: 17, 17: 18, // Pidgey
-    },
-
+    // Costs
     costs: {
         powerUp: { dust: 200, candy: 1 },
         evolve: { dust: 0, candy: 25 }
@@ -31,24 +15,24 @@ const PokeDetail = {
 
     close: () => {
         document.getElementById('pokemon-detail-screen').classList.remove('active');
-        UI.openStorage(); // Refresh storage grid
+        UI.openStorage(); 
     },
 
     render: () => {
         const p = Data.storage[PokeDetail.currentIndex];
         if(!p) return PokeDetail.close();
 
-        // Stats
+        // Calculate Attributes based on CP
         const weight = (p.cp / 100).toFixed(2);
         const height = (p.cp / 1000).toFixed(2);
         const hp = Math.floor(p.cp / 10);
         
-        // Resources
         const dust = Data.inventory['Stardust'] || 0;
         const candy = Data.user.candy || 0; 
-        
-        // LOGIC CHANGE: Use Family Name for Candy, fallback to Name if missing
         const candyName = p.family || p.name;
+
+        // CHECK IF EVOLUTION IS AVAILABLE FROM SAVED DATA
+        const canEvolve = p.nextId && p.nextId !== null;
 
         const screen = document.getElementById('pokemon-detail-screen');
         
@@ -96,11 +80,11 @@ const PokeDetail = {
                     <div class="pd-res">
                         <div class="pd-candy-icon"></div>
                         <span>${candy}</span>
-                        <!-- CORRECTED CANDY NAME -->
                         <span class="pd-res-label">${candyName.toUpperCase()} CANDY</span>
                     </div>
                 </div>
 
+                <!-- POWER UP -->
                 <div class="pd-action-btn" onclick="PokeDetail.powerUp()">
                     <div class="pd-btn-left">
                         <span class="pd-btn-title">POWER UP</span>
@@ -115,7 +99,8 @@ const PokeDetail = {
                     </div>
                 </div>
 
-                ${PokeDetail.evolutions[p.id] ? `
+                <!-- EVOLVE (Dynamic Check) -->
+                ${canEvolve ? `
                 <div class="pd-action-btn pd-evolve-btn" onclick="PokeDetail.evolve()">
                     <div class="pd-btn-left">
                         <span class="pd-btn-title">EVOLVE</span>
@@ -154,29 +139,70 @@ const PokeDetail = {
 
     evolve: () => {
         const p = Data.storage[PokeDetail.currentIndex];
-        const nextId = PokeDetail.evolutions[p.id];
         const cost = PokeDetail.costs.evolve;
 
-        if(!nextId) return;
+        if(!p.nextId) return;
 
         if (Data.user.candy >= cost.candy) {
             Data.user.candy -= cost.candy;
             
-            p.id = nextId;
+            // 1. Update ID and Stats
+            const oldId = p.id;
+            p.id = p.nextId;
             p.cp = Math.floor(p.cp * 1.6);
             
-            // We need the new name. For the demo list, we can try to guess or fetch.
-            // Simple approach: Check our Meta list or just use "Evolved Form" if unknown in offline mode.
-            // Ideally, we'd fetch the name, but to keep it simple and synchronous:
-            const metaMon = Meta.mons.find(m => m.id === nextId);
-            p.name = metaMon ? metaMon.n : "Evolved Form"; 
-            
-            // NOTE: p.family is NOT changed here. It remains "Gastly" even if name is "Gengar".
-
-            Game.save();
+            // 2. Fetch New Name (Attempt)
+            // We set a temporary name, then try to fetch the real one
+            p.name = "Evolving...";
             PokeDetail.render();
-            UI.toast(`Evolved!`, "#9C27B0");
-            document.querySelector('.pd-hero').classList.add('evolve-flash');
+
+            fetch(`https://pokeapi.co/api/v2/pokemon/${p.id}`)
+                .then(r => r.json())
+                .then(d => {
+                    // Clean Name
+                    p.name = d.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    
+                    // 3. Check if there is a FURTHER evolution (Grandchild)
+                    // We must fetch the species again to see if this new form has an evolution
+                    return fetch(d.species.url);
+                })
+                .then(r => r.json())
+                .then(sd => {
+                    return fetch(sd.evolution_chain.url);
+                })
+                .then(r => r.json())
+                .then(evoData => {
+                    // Traverse chain to find what comes after current p.id
+                    const chain = evoData.chain;
+                    let nextNextId = null;
+                    const getUrlId = (url) => url.split('/').filter(Boolean).pop();
+
+                    // Recursive finder
+                    const findNext = (node) => {
+                        if(getUrlId(node.species.url) == p.id) {
+                            if(node.evolves_to.length > 0) {
+                                nextNextId = getUrlId(node.evolves_to[0].species.url);
+                            }
+                        } else {
+                            node.evolves_to.forEach(child => findNext(child));
+                        }
+                    };
+                    findNext(chain);
+                    
+                    p.nextId = nextNextId; // Update next step (e.g. Ivysaur -> Venusaur)
+                    Game.save();
+                    PokeDetail.render();
+                    UI.toast(`Evolution Complete!`, "#9C27B0");
+                    document.querySelector('.pd-hero').classList.add('evolve-flash');
+                })
+                .catch(() => {
+                    // Offline Fallback
+                    p.name = "Evolved Form";
+                    p.nextId = null; // Assume final form if offline
+                    Game.save();
+                    PokeDetail.render();
+                });
+
         } else {
             UI.toast("Not enough Candy!", "red");
         }
