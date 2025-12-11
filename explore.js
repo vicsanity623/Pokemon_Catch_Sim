@@ -259,30 +259,63 @@ const Explore = {
         if (obj.spun || Explore.isInteracting) return;
         Explore.isInteracting = true;
         obj.spun = true;
-        obj.el.style.background = "#E91E63";
+        obj.el.style.background = "#E91E63"; // Change color to purple
 
-        const balls = Math.floor(Math.random() * 3) + 2;
-        const berries = Math.floor(Math.random() * 2) + 1;
+        // --- 1. DETERMINE REWARDS ---
+        
+        // XP & Stardust
         const xp = 300;
+        const stardust = Math.floor(Math.random() * 101) + 100; // Random 100 to 200
 
-        Data.inventory['Poke Ball'] += balls;
-        Data.inventory['Razz Berry'] += berries;
+        // Balls: 60% Poke, 30% Great, 10% Ultra
+        const ballRoll = Math.random();
+        let ballType = 'Poke Ball';
+        if (ballRoll > 0.90) ballType = 'Ultra Ball';
+        else if (ballRoll > 0.60) ballType = 'Great Ball';
+        
+        const ballCount = Math.floor(Math.random() * 3) + 2; // 2 to 4 items
+
+        // Berries: Random selection
+        const berryRoll = Math.random();
+        let berryType = 'Razz Berry';
+        if (berryRoll > 0.66) berryType = 'Pinap Berry';
+        else if (berryRoll > 0.33) berryType = 'Nanab Berry';
+
+        const berryCount = Math.floor(Math.random() * 2) + 1; // 1 to 2 items
+
+        // --- 2. UPDATE DATA ---
+        
+        // Helper to safely add items even if key doesn't exist yet
+        const addItem = (name, amount) => {
+            Data.inventory[name] = (Data.inventory[name] || 0) + amount;
+        };
+
+        addItem(ballType, ballCount);
+        addItem(berryType, berryCount);
+        addItem('Stardust', stardust); // Adds Stardust to inventory
+        
         Data.user.xp += xp;
 
+        // Check Level Up
         if (Data.user.xp >= Data.user.nextLevelXp) setTimeout(Game.levelUp, 1000);
+        
         Game.save();
         UI.updateHUD();
 
+        // --- 3. UI VISUALS ---
         const cx = window.innerWidth / 2;
         const cy = window.innerHeight / 2;
-        UI.spawnFloatText(`+${balls} Poke Balls`, cx, cy - 50, "#2196F3");
-        setTimeout(() => UI.spawnFloatText(`+${berries} Razz Berries`, cx, cy, "#E91E63"), 300);
-        setTimeout(() => UI.spawnFloatText(`+${xp} XP`, cx, cy + 50, "#FFEB3B"), 600);
 
-        // UNLOCK PLAYER AFTER SHORT DELAY (FIX)
-        setTimeout(() => { Explore.isInteracting = false; }, 1000);
+        // Float text staggered so they don't overlap
+        UI.spawnFloatText(`+${ballCount} ${ballType}`, cx, cy - 90, "#2196F3"); // Blue
+        setTimeout(() => UI.spawnFloatText(`+${berryCount} ${berryType}`, cx, cy - 50, "#E91E63"), 300); // Pink
+        setTimeout(() => UI.spawnFloatText(`+${stardust} Stardust`, cx, cy - 10, "#9C27B0"), 600); // Purple
+        setTimeout(() => UI.spawnFloatText(`+${xp} XP`, cx, cy + 30, "#FFEB3B"), 900); // Yellow
 
-        // RESET STOP COOLDOWN
+        // Unlock player movement
+        setTimeout(() => { Explore.isInteracting = false; }, 500);
+
+        // Reset Stop Cooldown (2 minutes)
         setTimeout(() => {
             obj.spun = false;
             obj.el.style.background = "#2196F3";
@@ -377,6 +410,8 @@ const Explore = {
 
     openRaid: (obj) => {
         if (Explore.isInteracting) return;
+        
+        // 1. CHECK COOLDOWN
         if (obj.cooldown && Date.now() < obj.cooldown) {
             const timeLeft = Math.ceil((obj.cooldown - Date.now()) / 1000);
             UI.spawnFloatText(`Raid Cooldown: ${timeLeft}s`, window.innerWidth / 2, window.innerHeight / 2, "red");
@@ -389,19 +424,34 @@ const Explore = {
         modal.style.display = 'flex';
         Explore.joystick.active = false;
 
+        // 2. GENERATE RANDOM BOSS (If one isn't assigned yet)
+        // This runs if it's a fresh raid or after a previous win reset it
         if (!obj.bossId) {
-            obj.bossId = [150, 144, 145, 146, 243, 244, 245, 384][Math.floor(Math.random() * 8)];
+            // Expanded pool of Legendaries and fully evolved strong mons
+            const raidPool = [
+                3, 6, 9, 65, 94, 130, 143, 149, // Venasaur, Charizard, Blastoise, Alakazam, Gengar, Gyarados, Snorlax, Dragonite
+                144, 145, 146, 150, 243, 244, 245, 248, 249, 250, 384, 382, 383 // Legendaries
+            ]; 
+            obj.bossId = raidPool[Math.floor(Math.random() * raidPool.length)];
+            
+            // Save to map data so it persists if you run away and come back
             const mapObj = Data.mapData.find(item => item.x === obj.x && item.y === obj.y && item.type === obj.type);
             if (mapObj) mapObj.bossId = obj.bossId;
             Game.save();
         }
+
         Explore.currentRaidBossId = obj.bossId;
         document.getElementById('raid-boss-img').src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${obj.bossId}.png`;
 
-        // RENDER TEAM WITH HP BARS
+        // 3. CALCULATE DIFFICULTY DISPLAY
+        const difficultyLvl = (Data.user.raidWins || 0) + 1;
+        const bossHpEstimate = 5000 + ((difficultyLvl - 1) * 500);
+
+        // RENDER TEAM
         document.getElementById('battle-team').innerHTML = `
             <div style="text-align:center; width:100%;">
-                <p style="color:#666; font-size:14px;">Select your team to fight!</p>
+                <h3 style="color:#F44336; margin:0;">RAID LEVEL ${difficultyLvl}</h3>
+                <p style="color:#666; font-size:12px;">Boss HP: ${bossHpEstimate}</p>
                 <div id="raid-team-slots" style="display:flex; justify-content:center; gap:20px; margin:20px 0;"></div>
                 <button id="btn-start-raid" class="btn-action" style="background:#F44336; width:100%; justify-content:center;" onclick="Explore.startRaidBattle()">START BATTLE</button>
             </div>
@@ -435,9 +485,17 @@ const Explore = {
     startRaidBattle: () => {
         document.getElementById('btn-start-raid').style.display = 'none';
 
-        // INIT BATTLE STATE
-        let bossHp = 5000; // Hardcoded boss HP
-        let maxBossHp = 5000;
+        // --- DIFFICULTY SCALING ---
+        // Get number of wins, default to 0
+        const raidWins = Data.user.raidWins || 0;
+        
+        // Base HP 5000 + 500 for every previous win
+        let maxBossHp = 5000 + (raidWins * 500);
+        let bossHp = maxBossHp;
+        
+        // Base Damage 30 + 2 for every previous win
+        const baseBossDamage = 30 + (raidWins * 2);
+
         let pokes = []; // { index, curHp, maxHp, moves, elId }
 
         // Use same sorted array as display
@@ -447,7 +505,6 @@ const Explore = {
             if (m) {
                 pokes.push({
                     idx: i,
-                    // Use saved MaxHP or calc logic
                     curHp: m.maxHp || Math.floor(m.cp / 10) + 50,
                     maxHp: m.maxHp || Math.floor(m.cp / 10) + 50,
                     moves: m.moves || [{ name: 'Attack', power: 20 }],
@@ -491,7 +548,10 @@ const Explore = {
             const alive = pokes.filter(p => p.curHp > 0);
             if (alive.length > 0) {
                 const victim = alive[Math.floor(Math.random() * alive.length)];
-                const bossDmg = Math.floor(Math.random() * 40) + 30; // 30-70 dmg
+                
+                // Scaled Damage
+                const bossDmg = Math.floor(Math.random() * 40) + baseBossDamage; 
+                
                 victim.curHp -= bossDmg;
 
                 // Update Victim Bar
@@ -510,27 +570,42 @@ const Explore = {
             // 3. CHECK END CONDITIONS
             if (bossHp <= 0) {
                 clearInterval(Explore.raidInterval);
-                // WIN
+                // --- WIN ---
                 UI.spawnFloatText("RAID WON!", window.innerWidth / 2, window.innerHeight / 2, "#FFC107");
 
-                if (Explore.currentRaidObj) Explore.currentRaidObj.cooldown = Date.now() + 120000;
+                // Increase Win Count (for difficulty scaling)
+                Data.user.raidWins = (Data.user.raidWins || 0) + 1;
+
+                // Set Cooldown
+                if (Explore.currentRaidObj) {
+                    Explore.currentRaidObj.cooldown = Date.now() + 120000;
+                    // RESET BOSS ID: This ensures next time you come back, it's a random new boss
+                    Explore.currentRaidObj.bossId = null; 
+                    
+                    // Clear from map data too
+                    const mapObj = Data.mapData.find(item => item.x === Explore.currentRaidObj.x && item.y === Explore.currentRaidObj.y && item.type === 'raid');
+                    if(mapObj) mapObj.bossId = null;
+                }
+                
+                Game.save();
 
                 setTimeout(() => {
                     Explore.closeRaid();
                     // TRIGGER CATCH
                     Explore.triggerEncounter(Explore.currentRaidBossId);
                 }, 2000);
-            } else if (alive.length === 0 && pokes.length > 0) { // Only if we actually had a team
+            } else if (alive.length === 0 && pokes.length > 0) { 
                 clearInterval(Explore.raidInterval);
-                // LOSE
+                // --- LOSE ---
+                // Do NOT reset boss ID. If they try again immediately, they fight the same boss.
                 UI.spawnFloatText("TEAM FAINTED!", window.innerWidth / 2, window.innerHeight / 2, "red");
                 setTimeout(() => {
                     Explore.closeRaid();
-                    // NO CATCH, JUST RETURN
+                    // Just return to map
                 }, 2000);
             }
 
-        }, 1200); // Turn every 1.2s
+        }, 1200); 
     },
 
     closeRaid: () => {
@@ -540,4 +615,3 @@ const Explore = {
         Explore.isInteracting = false;
         Explore.x += 10;
     }
-};
