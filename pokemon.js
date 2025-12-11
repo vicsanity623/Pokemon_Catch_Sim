@@ -3,6 +3,7 @@ const PokeDetail = {
 
     costs: {
         powerUp: { dust: 200, candy: 1 },
+        // Base evolve cost, but we override this with specific data
         evolve: { dust: 0, candy: 25 }
     },
 
@@ -32,6 +33,9 @@ const PokeDetail = {
         const candy = (Data.candyBag && Data.candyBag[familyName]) ? Data.candyBag[familyName] : 0;
 
         const canEvolve = p.nextId && p.nextId !== null;
+        
+        // Determine dynamic evolve cost for Display
+        const currentEvolveCost = p.evolveCost || 25;
 
         const screen = document.getElementById('pokemon-detail-screen');
 
@@ -97,6 +101,7 @@ const PokeDetail = {
                     </div>
                 </div>
 
+                <!-- POWER UP BUTTON -->
                 <div class="pd-action-btn" onclick="PokeDetail.powerUp()">
                     <div class="pd-btn-left">
                         <span class="pd-btn-title">POWER UP</span>
@@ -111,6 +116,7 @@ const PokeDetail = {
                     </div>
                 </div>
 
+                <!-- EVOLVE BUTTON -->
                 ${canEvolve ? `
                 <div class="pd-action-btn pd-evolve-btn" onclick="PokeDetail.evolve()">
                     <div class="pd-btn-left">
@@ -118,10 +124,22 @@ const PokeDetail = {
                     </div>
                     <div class="pd-btn-right">
                         <div class="pd-cost-item">
-                            <span class="pd-candy-tiny"></span> ${PokeDetail.costs.evolve.candy}
+                            <span class="pd-candy-tiny"></span> ${currentEvolveCost}
                         </div>
                     </div>
                 </div>` : ''}
+
+                <!-- TRANSFER (DELETE) BUTTON -->
+                <div class="pd-action-btn" style="background-color: #607D8B; margin-top: 15px;" onclick="PokeDetail.transfer()">
+                    <div class="pd-btn-left">
+                        <span class="pd-btn-title">TRANSFER</span>
+                    </div>
+                    <div class="pd-btn-right">
+                        <div class="pd-cost-item">
+                            <span class="pd-candy-tiny"></span> +5
+                        </div>
+                    </div>
+                </div>
 
             </div>
             <button class="pd-close-fab" onclick="PokeDetail.close()">✕</button>
@@ -145,11 +163,10 @@ const PokeDetail = {
             // INCREASE MOVE POWER
             if (p.moves && p.moves.length > 0) {
                 p.moves.forEach(move => {
-                    const moveBoost = Math.floor(Math.random() * 6) + 3; // 3-8 power increase
+                    const moveBoost = Math.floor(Math.random() * 6) + 3; 
                     move.power += moveBoost;
                 });
             } else {
-                // Add default moves if none exist (backwards compatibility)
                 p.moves = [
                     { name: 'Tackle', power: 40, type: 'normal' },
                     { name: 'Quick Attack', power: 40, type: 'normal' }
@@ -166,39 +183,64 @@ const PokeDetail = {
 
     evolve: () => {
         const p = Data.storage[PokeDetail.currentIndex];
-        const cost = PokeDetail.costs.evolve;
-        const familyName = p.family || p.name;
+        
+        // --- 1. DETERMINE COST ---
+        const currentCost = p.evolveCost || 25;
+        const familyName = p.family || p.name; 
 
-        if (!p.nextId) return;
+        if (!p.nextId) {
+            UI.toast("Cannot evolve further!", "gray");
+            return;
+        }
 
-        if (Data.candyBag[familyName] >= cost.candy) {
-            Data.candyBag[familyName] -= cost.candy;
+        // --- 2. CHECK CANDY ---
+        const currentCandy = Data.candyBag[familyName] || 0;
 
-            p.id = p.nextId;
+        if (currentCandy >= currentCost) {
+            // Deduct Candy
+            Data.candyBag[familyName] -= currentCost;
+
+            // --- 3. APPLY EVOLUTION & STAT BOOSTS ---
+            p.id = p.nextId; 
+            
+            // Boost CP (Multiplied by 1.6)
             p.cp = Math.floor(p.cp * 1.6);
+            
+            // Boost Attacks
+            if (p.moves && Array.isArray(p.moves)) {
+                p.moves.forEach(move => {
+                    const boost = Math.floor(Math.random() * 11) + 10; 
+                    move.power = (move.power || 20) + boost;
+                });
+            } else {
+                p.moves = [{ name: 'Tackle', power: 35 }, { name: 'Struggle', power: 45 }];
+            }
 
-            // Temporary Name
+            // Temporary Name/UI update
             p.name = "Evolving...";
             PokeDetail.render();
+            document.querySelector('.pd-hero').classList.add('evolve-flash');
 
+            // --- 4. FETCH DATA FOR NEXT STAGE ---
             fetch(`https://pokeapi.co/api/v2/pokemon/${p.id}`)
                 .then(r => r.json())
                 .then(d => {
                     p.name = d.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                    // Do NOT update p.family here.
                     return fetch(d.species.url);
                 })
                 .then(r => r.json())
                 .then(sd => fetch(sd.evolution_chain.url))
                 .then(r => r.json())
                 .then(evoData => {
-                    // Find if there is another evolution after this one
+                    
+                    // --- 5. FIND NEXT EVOLUTION ID ---
                     const chain = evoData.chain;
                     let nextNextId = null;
-                    const getUrlId = (url) => url.split('/').filter(Boolean).pop();
+                    const getUrlId = (url) => parseInt(url.split('/').filter(Boolean).pop());
 
                     const findNext = (node) => {
-                        if (getUrlId(node.species.url) == p.id) {
+                        const nodeId = getUrlId(node.species.url);
+                        if (nodeId === parseInt(p.id)) {
                             if (node.evolves_to.length > 0) {
                                 nextNextId = getUrlId(node.evolves_to[0].species.url);
                             }
@@ -208,22 +250,57 @@ const PokeDetail = {
                     };
                     findNext(chain);
 
+                    // Update for NEXT time
                     p.nextId = nextNextId;
+                    
+                    // Cost Doubling Logic (25 -> 50 -> 100)
+                    let newCost = currentCost * 2;
+                    if (newCost > 100) newCost = 100;
+                    p.evolveCost = newCost;
 
                     Game.save();
-                    PokeDetail.render();
-                    UI.toast(`Evolved!`, "#9C27B0");
-                    document.querySelector('.pd-hero').classList.add('evolve-flash');
+                    PokeDetail.render(); 
+                    UI.toast(`Success! Evolved to ${p.name}!`, "#9C27B0");
+                    setTimeout(() => document.querySelector('.pd-hero').classList.remove('evolve-flash'), 1000);
                 })
-                .catch(() => {
-                    p.name = "Evolved Form";
+                .catch((err) => {
+                    console.error(err);
+                    p.name = "Evolved Form"; 
                     p.nextId = null;
                     Game.save();
                     PokeDetail.render();
                 });
 
         } else {
-            UI.toast("Not enough Candy!", "red");
+            UI.toast(`Need ${currentCost} Candy! (Have ${currentCandy})`, "red");
+        }
+    },
+
+    transfer: () => {
+        const p = Data.storage[PokeDetail.currentIndex];
+        if (!p) return;
+
+        // --- CONFIRMATION DIALOG ---
+        if (confirm(`Are you sure you want to transfer ${p.name} to the Professor?\n\nYou will lose this Pokemon and receive 5 Candy.`)) {
+            
+            const familyName = p.family || p.name;
+            
+            // --- 1. ADD CANDY ---
+            if (!Data.candyBag[familyName]) Data.candyBag[familyName] = 0;
+            Data.candyBag[familyName] += 5;
+
+            // --- 2. REMOVE FROM STORAGE ---
+            // Splice removes the item at this index
+            Data.storage.splice(PokeDetail.currentIndex, 1);
+
+            // --- 3. SAVE AND EXIT ---
+            Game.save();
+            
+            // Close the detail view because the Pokemon is gone
+            PokeDetail.close();
+            
+            // Show toast message
+            UI.toast(`Transferred! +5 ${familyName} Candy`, "#2196F3");
         }
     }
 };
