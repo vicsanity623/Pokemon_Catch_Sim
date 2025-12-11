@@ -1,5 +1,4 @@
 const DailyRewards = {
-    // Reward Schedule
     schedule: [
         { day: 1, label: "Day 1", rewards: { 'Pinap Berry': 50, 'Stardust': 1000 } },
         { day: 2, label: "Day 2", rewards: { 'Pinap Berry': 50, 'Stardust': 5000 } },
@@ -11,36 +10,44 @@ const DailyRewards = {
     ],
 
     check: () => {
-        // Current UTC Date (YYYY-MM-DD) ensures global 00:00 reset
+        console.log("Checking Daily Rewards...");
+        
+        // Ensure Data exists before proceeding
+        if (typeof Data === 'undefined') {
+            console.error("Data object not found. Retrying in 500ms...");
+            setTimeout(DailyRewards.check, 500);
+            return;
+        }
+
         const now = new Date();
         const todayKey = `${now.getUTCFullYear()}-${now.getUTCMonth() + 1}-${now.getUTCDate()}`;
         
-        // Load saved state
         const lastClaim = localStorage.getItem('daily_last_claim');
         let streak = parseInt(localStorage.getItem('daily_streak') || 0);
 
-        // If already claimed today, do nothing
-        if (lastClaim === todayKey) return;
+        console.log(`Last Claim: ${lastClaim}, Today: ${todayKey}`);
 
-        // Check streak continuity
+        if (lastClaim === todayKey) {
+            console.log("Already claimed today.");
+            return;
+        }
+
         const yesterday = new Date(now);
         yesterday.setUTCDate(now.getUTCDate() - 1);
         const yesterdayKey = `${yesterday.getUTCFullYear()}-${yesterday.getUTCMonth() + 1}-${yesterday.getUTCDate()}`;
 
         if (lastClaim === yesterdayKey) {
-            streak++; // Continue streak
+            streak++;
         } else {
-            streak = 1; // Reset streak if missed a day
+            streak = 1;
         }
 
-        // Loop streak (1-7)
         if (streak > 7) streak = 1;
 
-        // Save new state immediately so it doesn't pop up again on refresh
         localStorage.setItem('daily_last_claim', todayKey);
         localStorage.setItem('daily_streak', streak);
 
-        // Give Rewards
+        console.log(`Granting Day ${streak} reward!`);
         DailyRewards.grant(streak);
     },
 
@@ -48,17 +55,11 @@ const DailyRewards = {
         const rewardData = DailyRewards.schedule[day - 1];
         let floatText = `Daily Reward (Day ${day})\n`;
 
-        // Process items
         for (let item in rewardData.rewards) {
             const qty = rewardData.rewards[item];
-            
             if (item === 'XP') {
                 Data.user.xp += qty;
                 floatText += `+${qty} XP\n`;
-                // Check Level Up
-                if (Data.user.xp >= Data.user.nextLevelXp) {
-                    setTimeout(Game.levelUp, 1000);
-                }
             } else if (item === 'Stardust') {
                 Data.inventory['Stardust'] += qty;
                 floatText += `+${qty} Stardust\n`;
@@ -69,19 +70,21 @@ const DailyRewards = {
             }
         }
 
-        Game.save();
-        UI.updateHUD();
-
-        // Show Visuals
-        setTimeout(() => {
-            // Center Screen Float
-            UI.spawnFloatText(floatText, window.innerWidth / 2, window.innerHeight / 2, "#FFC107");
-            // Play Sound effect visual (sparkles)
-            for(let i=0; i<10; i++) {
-                setTimeout(() => {
-                    FX.sparkle(window.innerWidth/2 + (Math.random()-0.5)*200, window.innerHeight/2 + (Math.random()-0.5)*200);
-                }, i * 100);
-            }
-        }, 1500); // Small delay to let game load
+        // Save and Update UI
+        if(typeof Game !== 'undefined') Game.save();
+        if(typeof UI !== 'undefined') {
+            UI.updateHUD();
+            setTimeout(() => {
+                UI.spawnFloatText(floatText, window.innerWidth / 2, window.innerHeight / 2, "#FFC107");
+                // Sparkle Effect
+                if(typeof FX !== 'undefined') {
+                    for(let i=0; i<10; i++) {
+                        setTimeout(() => {
+                            FX.sparkle(window.innerWidth/2 + (Math.random()-0.5)*200, window.innerHeight/2 + (Math.random()-0.5)*200);
+                        }, i * 100);
+                    }
+                }
+            }, 1000);
+        }
     }
 };
