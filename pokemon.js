@@ -201,31 +201,43 @@ const PokeDetail = {
             Data.candyBag[familyName] -= currentCost;
 
             // --- 3. APPLY EVOLUTION & STAT BOOSTS ---
+            const oldId = p.id;
             p.id = p.nextId; 
             
             // Boost CP (Multiplied by 1.6)
             p.cp = Math.floor(p.cp * 1.6);
             
-            // Boost Attacks
+            // Boost Attacks (Permanent Power Increase)
             if (p.moves && Array.isArray(p.moves)) {
                 p.moves.forEach(move => {
+                    // Add +10 to +20 power
                     const boost = Math.floor(Math.random() * 11) + 10; 
                     move.power = (move.power || 20) + boost;
                 });
             } else {
-                p.moves = [{ name: 'Tackle', power: 35 }, { name: 'Struggle', power: 45 }];
+                // Fallback for older saves
+                p.moves = [{ name: 'Tackle', power: 45 }, { name: 'Struggle', power: 55 }];
             }
 
-            // Temporary Name/UI update
+            // UI Feedback
             p.name = "Evolving...";
             PokeDetail.render();
             document.querySelector('.pd-hero').classList.add('evolve-flash');
 
-            // --- 4. FETCH DATA FOR NEXT STAGE ---
+            // --- 4. FETCH DATA ---
             fetch(`https://pokeapi.co/api/v2/pokemon/${p.id}`)
                 .then(r => r.json())
                 .then(d => {
+                    // A. SET NAME IMMEDIATELY
+                    // This ensures that even if the evolution chain check fails later, 
+                    // we still have the correct name (e.g. "Marowak") instead of "Evolved Form".
                     p.name = d.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                    
+                    // Save RIGHT NOW to lock in the name
+                    Game.save();
+                    PokeDetail.render(); 
+
+                    // B. Fetch Species Data for Next Evolution Check
                     return fetch(d.species.url);
                 })
                 .then(r => r.json())
@@ -236,39 +248,65 @@ const PokeDetail = {
                     // --- 5. FIND NEXT EVOLUTION ID ---
                     const chain = evoData.chain;
                     let nextNextId = null;
-                    const getUrlId = (url) => parseInt(url.split('/').filter(Boolean).pop());
+                    
+                    const getUrlId = (url) => {
+                        const parts = url.split('/').filter(Boolean);
+                        return parseInt(parts.pop());
+                    };
 
+                    // Recursive search to find CURRENT Pokemon in the chain
                     const findNext = (node) => {
                         const nodeId = getUrlId(node.species.url);
+                        
+                        // Compare as Numbers to be strictly safe
                         if (nodeId === parseInt(p.id)) {
+                            // We found the current form! Does it have a child?
                             if (node.evolves_to.length > 0) {
                                 nextNextId = getUrlId(node.evolves_to[0].species.url);
                             }
                         } else {
+                            // Keep looking deeper
                             node.evolves_to.forEach(child => findNext(child));
                         }
                     };
+
                     findNext(chain);
 
-                    // Update for NEXT time
+                    // Update nextId for the NEXT time they want to evolve
                     p.nextId = nextNextId;
                     
-                    // Cost Doubling Logic (25 -> 50 -> 100)
+                    // --- COST DOUBLING LOGIC ---
+                    // 25 -> 50 -> 100. Caps at 100.
                     let newCost = currentCost * 2;
                     if (newCost > 100) newCost = 100;
                     p.evolveCost = newCost;
 
                     Game.save();
                     PokeDetail.render(); 
+                    
                     UI.toast(`Success! Evolved to ${p.name}!`, "#9C27B0");
-                    setTimeout(() => document.querySelector('.pd-hero').classList.remove('evolve-flash'), 1000);
+                    setTimeout(() => {
+                        const hero = document.querySelector('.pd-hero');
+                        if(hero) hero.classList.remove('evolve-flash');
+                    }, 1000);
                 })
                 .catch((err) => {
-                    console.error(err);
-                    p.name = "Evolved Form"; 
+                    console.error("Evolution Data Error:", err);
+                    
+                    // --- THE FIX ---
+                    // Only overwrite the name if we truly failed to get it earlier.
+                    // If p.name is "Marowak", leave it alone!
+                    if (p.name === "Evolving...") {
+                        p.name = "Evolved Form";
+                    }
+
+                    // If we failed to find the chain, set nextId to null 
+                    // so the user isn't stuck with a broken evolve button.
                     p.nextId = null;
+                    
                     Game.save();
                     PokeDetail.render();
+                    UI.toast("Evolved, but next evolution data unavailable.", "orange");
                 });
 
         } else {
