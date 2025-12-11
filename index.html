@@ -8,7 +8,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>Pokémon GO Clone v1.0.0.1</title>
+    <title>Pokémon GO Clone v1.0.0.2</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -125,8 +125,8 @@
             top: 46%;
             left: 50%;
             transform: translate3d(-50%, -50%, -300px);
-            width: 500px;
-            height: 500px;
+            width: 600px;
+            height: 600px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -137,8 +137,8 @@
         }
 
         #pokemon-sprite {
-            width: 300px;
-            height: 300px;
+            width: 400px;
+            height: 400px;
             object-fit: contain;
             filter: drop-shadow(0 20px 20px rgba(0, 0, 0, 0.4));
             animation: idleHover 3s infinite ease-in-out;
@@ -163,7 +163,7 @@
             border-radius: 16px;
             font-weight: 800;
             color: #333;
-            font-size: 16px;
+            font-size: 20px;
             margin-bottom: 20px;
             text-transform: uppercase;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -174,8 +174,8 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -25%);
-            width: 450px;
-            height: 450px;
+            width: 650px;
+            height: 650px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -194,10 +194,10 @@
         }
 
         #ring-target {
-            width: 100%;
-            height: 100%;
-            border: 4px solid #ff0000;
-            animation: shrinkRing 1.8s linear infinite;
+            width: 300%;
+            height: 300%;
+            border: 5px solid #ff0000;
+            animation: shrinkRing 3.5s linear infinite;
         }
 
         @keyframes shrinkRing {
@@ -214,8 +214,8 @@
 
         #ball-container {
             position: absolute;
-            width: 90px;
-            height: 90px;
+            width: 120px;
+            height: 120px;
             left: 50%;
             bottom: 10%;
             transform: translate3d(-50%, 0, 0);
@@ -224,12 +224,12 @@
         }
 
         #ball-sprite {
-            width: 100%;
-            height: 100%;
+            width: 250%;
+            height: 250%;
             background-image: url('https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png');
             background-size: contain;
             background-repeat: no-repeat;
-            border-radius: 50%;
+            border-radius: 75%;
         }
 
         .sparkle {
@@ -1243,7 +1243,7 @@
     </div>
 
     <div id="game-stage">
-        <div id="version-tag">v1.0.0.1</div>
+        <div id="version-tag">v1.0.0.2</div>
     </div>
 
     <!-- SCREENS -->
@@ -1578,8 +1578,8 @@
                     setTimeout(Game.resetBall, 1000);
                 }
             },
-            showResults: () => { const s = Game.state; const res = document.getElementById('result-overlay'); const list = document.getElementById('bonus-list'); const spriteSrc = document.getElementById('pokemon-sprite').src; document.getElementById('res-poke-img').src = spriteSrc; document.getElementById('res-poke-name').innerText = s.mon.n + " (CP " + s.mon.cp + ")"; let xp = 100; list.innerHTML = ''; if (s.throwGrade) { let bonus = s.throwGrade === 'Excellent' ? 1000 : (s.throwGrade === 'Great' ? 500 : 100); xp += bonus; list.innerHTML += `<div class="stat-row bonus-row"><span>${s.throwGrade} Throw</span><span>+${bonus} XP</span></div>`; } if (s.isCurve) { xp += 20; list.innerHTML += `<div class="stat-row bonus-row"><span>Curveball</span><span>+20 XP</span></div>`; } document.getElementById('total-xp-val').innerText = xp + " XP"; let candy = s.berry === 'Pinap Berry' ? 6 : 3; document.getElementById('res-candy').innerText = "+" + candy; const family = s.mon.family; if (!Data.candyBag) Data.candyBag = {}; if (!Data.candyBag[family]) Data.candyBag[family] = 0; Data.candyBag[family] += candy; Data.user.xp += xp; Data.inventory['Stardust'] += 100; if (Data.user.xp >= Data.user.nextLevelXp) { setTimeout(Game.levelUp, 1000); } else { Game.save(); UI.updateHUD(); } document.getElementById('gameplay-ui').style.display = 'none'; res.style.display = 'flex'; setTimeout(() => res.classList.add('visible'), 10); },
-            levelUp: () => { document.getElementById('result-overlay').classList.remove('visible'); document.getElementById('result-overlay').style.display = 'none'; Data.user.level++; Data.user.xp -= Data.user.nextLevelXp; Data.user.nextLevelXp = Math.floor(Data.user.nextLevelXp * 1.5); const rewards = []; for (let i = 0; i < 5; i++) { const keys = Object.keys(Data.inventory); const item = keys[Math.floor(Math.random() * keys.length)]; if (item === 'Master Ball' || item === 'Stardust') continue; Data.inventory[item] += 5; rewards.push(item); } Game.save(); UI.updateHUD(); document.getElementById('new-level-num').innerText = Data.user.level; const grid = document.getElementById('lvl-up-rewards'); grid.innerHTML = ''; const counts = {}; rewards.forEach(x => { counts[x] = (counts[x] || 0) + 5; }); for (let k in counts) { let img = ""; if (Meta.balls[k]) img = Meta.balls[k].img; else img = Meta.berries[k].img; grid.innerHTML += `<div class="reward-item"><img src="${ASSETS.item + img}" width="40"><span style="font-weight:bold; margin-top:5px;">+${counts[k]}</span></div>`; } const lvl = document.getElementById('levelup-overlay'); lvl.style.display = 'flex'; setTimeout(() => lvl.classList.add('visible'), 10); },
+            showResults: () => { const s = Game.state; const res = document.getElementById('result-overlay'); const list = document.getElementById('bonus-list'); const spriteSrc = document.getElementById('pokemon-sprite').src; document.getElementById('res-poke-img').src = spriteSrc; document.getElementById('res-poke-name').innerText = s.mon.n + " (CP " + s.mon.cp + ")"; let xp = 500; list.innerHTML = ''; if (s.throwGrade) { let bonus = s.throwGrade === 'Excellent' ? 1000 : (s.throwGrade === 'Great' ? 500 : 200); xp += bonus; list.innerHTML += `<div class="stat-row bonus-row"><span>${s.throwGrade} Throw</span><span>+${bonus} XP</span></div>`; } if (s.isCurve) { xp += 220; list.innerHTML += `<div class="stat-row bonus-row"><span>Curveball</span><span>+20 XP</span></div>`; } document.getElementById('total-xp-val').innerText = xp + " XP"; let candy = s.berry === 'Pinap Berry' ? 6 : 3; document.getElementById('res-candy').innerText = "+" + candy; const family = s.mon.family; if (!Data.candyBag) Data.candyBag = {}; if (!Data.candyBag[family]) Data.candyBag[family] = 0; Data.candyBag[family] += candy; Data.user.xp += xp; Data.inventory['Stardust'] += 100; if (Data.user.xp >= Data.user.nextLevelXp) { setTimeout(Game.levelUp, 1000); } else { Game.save(); UI.updateHUD(); } document.getElementById('gameplay-ui').style.display = 'none'; res.style.display = 'flex'; setTimeout(() => res.classList.add('visible'), 10); },
+            levelUp: () => { document.getElementById('result-overlay').classList.remove('visible'); document.getElementById('result-overlay').style.display = 'none'; Data.user.level++; Data.user.xp -= Data.user.nextLevelXp; Data.user.nextLevelXp = Math.floor(Data.user.nextLevelXp * 1.2); const rewards = []; for (let i = 0; i < 5; i++) { const keys = Object.keys(Data.inventory); const item = keys[Math.floor(Math.random() * keys.length)]; if (item === 'Master Ball' || item === 'Stardust') continue; Data.inventory[item] += 5; rewards.push(item); } Game.save(); UI.updateHUD(); document.getElementById('new-level-num').innerText = Data.user.level; const grid = document.getElementById('lvl-up-rewards'); grid.innerHTML = ''; const counts = {}; rewards.forEach(x => { counts[x] = (counts[x] || 0) + 5; }); for (let k in counts) { let img = ""; if (Meta.balls[k]) img = Meta.balls[k].img; else img = Meta.berries[k].img; grid.innerHTML += `<div class="reward-item"><img src="${ASSETS.item + img}" width="40"><span style="font-weight:bold; margin-top:5px;">+${counts[k]}</span></div>`; } const lvl = document.getElementById('levelup-overlay'); lvl.style.display = 'flex'; setTimeout(() => lvl.classList.add('visible'), 10); },
             claimRewards: () => { const lvl = document.getElementById('levelup-overlay'); lvl.classList.remove('visible'); setTimeout(() => { lvl.style.display = 'none'; Game.nextPokemon(); }, 300); },
             nextPokemon: () => { if (Game.state.transitioning) return; Game.state.transitioning = true; const res = document.getElementById('result-overlay'); res.classList.remove('visible'); setTimeout(() => { res.style.display = 'none'; Explore.start(); }, 300); },
             miss: () => { Game.state.mode = 'idle'; setTimeout(Game.resetBall, 600); }
