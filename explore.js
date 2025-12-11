@@ -263,7 +263,7 @@ const Explore = {
 
         const balls = Math.floor(Math.random() * 3) + 2;
         const berries = Math.floor(Math.random() * 2) + 1;
-        const xp = 100;
+        const xp = 300;
 
         Data.inventory['Poke Ball'] += balls;
         Data.inventory['Razz Berry'] += berries;
