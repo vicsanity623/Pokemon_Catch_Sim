@@ -1397,6 +1397,10 @@
     </div>
 
     <div id="pokemon-detail-screen"></div>
+    <!-- 1. LOAD EXTERNAL LIBRARIES FIRST -->
+    <script src="explore.js"></script>
+    <script src="pokemon.js"></script>
+    <script src="daily.js"></script>
 
     <script>
         const ASSETS = { poke: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/", item: "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/" };
@@ -1681,13 +1685,17 @@
         // MAIN ENTRY
         window.onload = () => {
             const saved = localStorage.getItem(STORAGE_KEY);
-            if (saved) Data = JSON.parse(saved);
+            if (saved) {
+                 try { Data = JSON.parse(saved); } catch(e) {}
+            }
+            // Defaults
             if (!Data.inventory['Stardust']) Data.inventory['Stardust'] = 500;
             if (!Data.user.candy) Data.user.candy = 0;
             if (!Data.candyBag) Data.candyBag = {};
-
+    
             Explore.init();
             requestAnimationFrame(Game.loop);
+            
             const stage = document.body;
             stage.addEventListener('touchstart', Input.start, { passive: false });
             stage.addEventListener('touchmove', Input.move, { passive: false });
@@ -1696,16 +1704,11 @@
             window.addEventListener('mousemove', Input.move);
             window.addEventListener('mouseup', Input.end);
             
-            // --- DAILY REWARDS CHECK ---
-            if(window.DailyRewards) DailyRewards.check();
+            // --- DAILY REWARDS CHECK (With safe delay) ---
+            setTimeout(() => {
+                if(window.DailyRewards) DailyRewards.check();
+            }, 500);
         };
     </script>
-
-    <!-- EXTERNAL FILES -->
-    <script src="explore.js"></script>
-    <script src="pokemon.js"></script>
-    <script src="daily.js"></script> <!-- Added Link -->
-
 </body>
-
 </html>
