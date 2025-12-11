@@ -8,7 +8,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>Pokémon GO Clone v1.0.0.4</title>
+    <title>Pokémon GO Clone v1.0.0.5</title>
     <link rel="manifest" href="manifest.json">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1244,7 +1244,7 @@
     </div>
 
     <div id="game-stage">
-        <div id="version-tag">v1.0.0.4</div>
+        <div id="version-tag">v1.0.0.5</div>
     </div>
 
     <!-- SCREENS -->
@@ -1695,12 +1695,16 @@
             stage.addEventListener('mousedown', Input.start);
             window.addEventListener('mousemove', Input.move);
             window.addEventListener('mouseup', Input.end);
+            
+            // --- DAILY REWARDS CHECK ---
+            if(window.DailyRewards) DailyRewards.check();
         };
     </script>
 
     <!-- EXTERNAL FILES -->
     <script src="explore.js"></script>
     <script src="pokemon.js"></script>
+    <script src="daily.js"></script> <!-- Added Link -->
 
 </body>
 
