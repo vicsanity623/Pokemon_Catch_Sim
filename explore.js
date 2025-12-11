@@ -615,3 +615,4 @@ const Explore = {
         Explore.isInteracting = false;
         Explore.x += 10;
     }
+};
