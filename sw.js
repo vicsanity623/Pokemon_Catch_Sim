@@ -3,6 +3,7 @@ const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './pokemon.js',
+  './explore.js',
   './manifest.json'
 ];
 
