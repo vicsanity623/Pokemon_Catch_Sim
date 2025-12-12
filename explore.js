@@ -130,14 +130,46 @@ const Explore = {
             Game.save();
         }
 
+        const raidPool = [
+            3, 6, 9, 65, 94, 130, 143, 149,
+            144, 145, 146, 150, 243, 244, 245, 248, 249, 250, 384, 382, 383
+        ];
+
         Data.mapData.forEach(obj => {
             let el = document.createElement('div');
+
+            // --- GYM RENDER ---
             if (obj.type === 'gym') {
                 el.className = 'map-obj gym';
-                el.innerHTML = `<div class="gym-dome"></div>`;
+                // Show defender if exists
+                if (obj.defender) {
+                    el.innerHTML = `
+                        <div class="gym-dome" style="border-color:#FF5722;"></div>
+                        <img src="${ASSETS.poke + obj.defender.id + '.png'}" 
+                             style="position:absolute; width:40px; height:40px; top:50%; left:50%; transform:translate(-50%, -60%); z-index:2;">
+                     `;
+                } else {
+                    el.innerHTML = `<div class="gym-dome"></div>`;
+                }
+
+                // --- RAID RENDER ---
             } else if (obj.type === 'raid') {
                 el.className = 'map-obj raid';
-                el.innerHTML = `<div class="raid-timer">02:00</div>`;
+
+                // Initialize Unique Raid Data if missing
+                if (!obj.bossId || !obj.raidExpiry) {
+                    obj.bossId = raidPool[Math.floor(Math.random() * raidPool.length)];
+                    obj.raidExpiry = Date.now() + 120000;
+                    obj.raidLevel = 1;
+                    // Auto-save happens periodically or on interaction, but let's ensure consistency
+                }
+
+                el.innerHTML = `
+                    <div class="raid-timer">00:00</div>
+                    <img class="raid-boss-preview" src="${ASSETS.poke + obj.bossId + '.png'}" 
+                         style="width:50px; height:50px; position:absolute; top:50%; left:50%; transform:translate(-50%, -50%);">
+                `;
+
             } else if (obj.type === 'stop') {
                 el.className = 'map-obj pokestop';
             } else if (obj.type === 'terminal') {
@@ -149,7 +181,6 @@ const Explore = {
                 `;
             } else if (obj.type === 'wild') {
                 el.className = 'map-obj wild-spawn';
-                // If saved ID is out of range, might want to update it, but keeping it simple for now
                 el.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${obj.id}.png" width="80">`;
             }
             el.style.left = obj.x + 'px';
@@ -161,6 +192,45 @@ const Explore = {
 
     update: () => {
         if (!document.getElementById('explore-screen').classList.contains('active')) return;
+
+        // --- UPDATE RAID TIMERS & ROTATION ---
+        const now = Date.now();
+        const raidPool = [3, 6, 9, 65, 94, 130, 143, 149, 144, 145, 146, 150, 243, 244, 245, 248, 249, 250, 384, 382, 383];
+
+        Explore.objects.forEach(obj => {
+            if (obj.type === 'raid') {
+                // Check Expiry
+                if (now > obj.raidExpiry) {
+                    // Rotate Boss using Data.mapData reference to persist
+                    const mapObj = Data.mapData.find(m => m.x === obj.x && m.y === obj.y && m.type === 'raid');
+                    if (mapObj) {
+                        mapObj.bossId = raidPool[Math.floor(Math.random() * raidPool.length)];
+                        mapObj.raidExpiry = now + 120000; // 2 minutes
+                        mapObj.raidLevel = 1; // Reset level on new boss
+
+                        // Update local object
+                        obj.bossId = mapObj.bossId;
+                        obj.raidExpiry = mapObj.raidExpiry;
+                        obj.raidLevel = mapObj.raidLevel;
+
+                        Game.save();
+
+                        // Update Sprite
+                        const img = obj.el.querySelector('.raid-boss-preview');
+                        if (img) img.src = ASSETS.poke + obj.bossId + '.png';
+                    }
+                }
+
+                // Update Timer Text
+                const timeLeft = Math.max(0, obj.raidExpiry - now);
+                const minutes = Math.floor(timeLeft / 60000);
+                const seconds = Math.floor((timeLeft % 60000) / 1000);
+                const timerDiv = obj.el.querySelector('.raid-timer');
+                if (timerDiv) {
+                    timerDiv.innerText = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+                }
+            }
+        });
 
         if (!Explore.isInteracting) {
             Explore.x -= Explore.joystick.dx * Explore.speed;
@@ -378,8 +448,9 @@ const Explore = {
         Explore.joystick.active = false;
 
         const slot = document.getElementById('gym-defender-slot');
-        if (Data.gymDefenders && Data.gymDefenders.length > 0) {
-            const def = Data.gymDefenders[0];
+        // REFACTOR: Use local defender object
+        if (obj.defender) {
+            const def = obj.defender;
             const minutes = Math.floor((Date.now() - def.start) / 60000);
             const candyEarned = Math.min(100, minutes);
 
@@ -400,11 +471,13 @@ const Explore = {
         document.getElementById('gym-modal').style.display = 'none';
         Explore.joystick.active = false;
         Explore.isInteracting = false;
-        Explore.x += 10;
+        Explore.x += 100;
 
         // Set 60s cooldown
         if (Explore.currentGymObj) {
             Explore.currentGymObj.cooldown = Date.now() + 60000;
+            // Force redraw to show/hide defender on map
+            Explore.generateMap();
         }
     },
 
@@ -437,27 +510,42 @@ const Explore = {
         document.getElementById('leaderboard-modal').style.display = 'none';
         Explore.isInteracting = false;
         Explore.joystick.active = false;
-        Explore.x += 10; // Bump player away to prevent instant reproc
+        Explore.x += 100; // Bump player away to prevent instant reproc
     },
 
     deployDefender: () => {
         UI.openStorage(true, (index) => {
             const p = Data.storage[index];
             if (!p) { UI.closeStorage(); return; }
-            Data.gymDefenders = [{ ...p, start: Date.now() }];
-            Data.storage.splice(index, 1);
-            Game.save();
+
+            // Save to THIS gym
+            if (Explore.currentGymObj) {
+                // Find in Data.mapData to persist
+                const mapObj = Data.mapData.find(m => m.x === Explore.currentGymObj.x && m.y === Explore.currentGymObj.y && m.type === 'gym');
+                if (mapObj) {
+                    mapObj.defender = { ...p, start: Date.now() };
+                    Explore.currentGymObj.defender = mapObj.defender;
+
+                    // Remove from storage
+                    Data.storage.splice(index, 1);
+                    Game.save();
+                }
+            }
+
             UI.closeStorage();
-            Explore.openGym();
+            // Re-render gym view
+            Explore.openGym(Explore.currentGymObj);
         });
     },
 
     recallDefender: () => {
-        if (!Data.gymDefenders || Data.gymDefenders.length === 0) { Explore.closeGym(); return; }
-        const def = Data.gymDefenders[0];
+        if (!Explore.currentGymObj || !Explore.currentGymObj.defender) { Explore.closeGym(); return; }
+
+        const def = Explore.currentGymObj.defender;
         const start = def.start || Date.now();
         const minutes = Math.floor((Date.now() - start) / 60000);
         const earned = Math.min(100, minutes);
+
         if (!Data.candyBag) Data.candyBag = {};
         if (!Data.candyBag[def.family]) Data.candyBag[def.family] = 0;
         Data.candyBag[def.family] += earned;
@@ -466,8 +554,14 @@ const Explore = {
         const { start: _, ...pokemonData } = def;
         Data.storage.unshift(pokemonData);
 
-        Data.gymDefenders = [];
-        Game.save();
+        // CLEAR DEFENDER FROM THIS GYM
+        const mapObj = Data.mapData.find(m => m.x === Explore.currentGymObj.x && m.y === Explore.currentGymObj.y && m.type === 'gym');
+        if (mapObj) {
+            mapObj.defender = null;
+            Explore.currentGymObj.defender = null;
+            Game.save();
+        }
+
         Explore.closeGym();
     },
 
@@ -489,22 +583,12 @@ const Explore = {
         modal.style.display = 'flex';
         Explore.joystick.active = false;
 
-        if (!obj.bossId) {
-            const raidPool = [
-                3, 6, 9, 65, 94, 130, 143, 149,
-                144, 145, 146, 150, 243, 244, 245, 248, 249, 250, 384, 382, 383
-            ];
-            obj.bossId = raidPool[Math.floor(Math.random() * raidPool.length)];
-
-            const mapObj = Data.mapData.find(item => item.x === obj.x && item.y === obj.y && item.type === obj.type);
-            if (mapObj) mapObj.bossId = obj.bossId;
-            Game.save();
-        }
-
+        // Ensure bossId exists (should be handled by update/generateMap)
         Explore.currentRaidBossId = obj.bossId;
         document.getElementById('raid-boss-img').src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${obj.bossId}.png`;
 
-        const difficultyLvl = (Data.user.raidWins || 0) + 1;
+        // Use UNIQUE Raid Level
+        const difficultyLvl = obj.raidLevel || 1;
         const bossHpEstimate = 5000 + ((difficultyLvl - 1) * 500);
 
         document.getElementById('battle-team').innerHTML = `
@@ -541,10 +625,13 @@ const Explore = {
 
     startRaidBattle: () => {
         document.getElementById('btn-start-raid').style.display = 'none';
-        const raidWins = Data.user.raidWins || 0;
-        let maxBossHp = 5000 + (raidWins * 500);
+
+        // UNIQUE DIFFICULTY
+        const raidLvl = Explore.currentRaidObj.raidLevel || 1;
+
+        let maxBossHp = 5000 + ((raidLvl - 1) * 500);
         let bossHp = maxBossHp;
-        const baseBossDamage = 30 + (raidWins * 2);
+        const baseBossDamage = 30 + ((raidLvl - 1) * 2);
 
         // DAMAGE TRACKING
         let totalDamageDealt = 0;
@@ -616,9 +703,6 @@ const Explore = {
             if (hasEnded) {
                 clearInterval(Explore.raidInterval);
 
-                // LEADERBOARD UPDATE
-                // We update score regardless of win/loss, as goal is "total damage dealt" in that attempt? 
-                // "Highest damage dealt to a raid boss". Assuming per-attempt.
                 if (totalDamageDealt > (Data.user.raidHighScore || 0)) {
                     Data.user.raidHighScore = totalDamageDealt;
                     UI.spawnFloatText(`NEW HIGH SCORE: ${totalDamageDealt}!`, window.innerWidth / 2, window.innerHeight / 2 + 50, "#0f0");
@@ -648,14 +732,18 @@ const Explore = {
                         }
                     });
 
-                    Data.user.raidWins = (Data.user.raidWins || 0) + 1;
+                    // INCREASE RAID LEVEL (UNIQUE)
                     if (Explore.currentRaidObj) {
                         Explore.currentRaidObj.cooldown = Date.now() + 120000;
-                        Explore.currentRaidObj.bossId = null;
                         const mapObj = Data.mapData.find(item => item.x === Explore.currentRaidObj.x && item.y === Explore.currentRaidObj.y && item.type === 'raid');
-                        if (mapObj) mapObj.bossId = null;
+                        if (mapObj) {
+                            // Increase unique level
+                            mapObj.raidLevel = (mapObj.raidLevel || 1) + 1;
+                            Explore.currentRaidObj.raidLevel = mapObj.raidLevel;
+                        }
                     }
                     Game.save();
+
                     setTimeout(() => {
                         Explore.closeRaid();
                         Explore.triggerEncounter(Explore.currentRaidBossId);
