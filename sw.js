@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pokecatch-v1.0.0.5'; // Change this string to force update next time (e.g., v10)
+const CACHE_NAME = 'pokecatch-v1.0.0.7'; // Change this string to force update next time (e.g., v10)
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

@@ -38,22 +38,42 @@ const Explore = {
         Explore.frameId = requestAnimationFrame(Explore.update);
     },
 
+    // COMPLETE LIST OF BASE POKEMON IDS (Preventing evolutions in wild)
+    allBaseIds: [
+        1, 4, 7, 10, 13, 16, 19, 21, 23, 27, 29, 32, 35, 37, 39, 41, 43, 46, 48, 50, 52, 54, 56, 58, 60, 63, 66, 69, 72, 74, 77, 79, 81, 83, 84, 86, 88, 90, 92, 95, 96, 98, 100, 102, 104, 106, 108, 109, 111, 113, 114, 115, 116, 118, 120, 122, 123, 124, 125, 126, 127, 128, 129, 131, 132, 133, 137, 138, 140, 142, 147, 152, 155, 158, 161, 163, 165, 167, 170, 172, 173, 174, 175, 177, 179, 183, 185, 187, 190, 191, 193, 194, 198, 200, 201, 202, 203, 204, 206, 207, 209, 211, 213, 214, 215, 216, 218, 220, 222, 223, 225, 227, 228, 231, 234, 235, 236, 238, 239, 240, 241, 246, 252, 255, 258, 261, 263, 265, 270, 273, 276, 278, 280, 283, 285, 287, 290, 293, 296, 298, 299, 300, 302, 304, 307, 309, 311, 312, 313, 314, 315, 316, 318, 320, 322, 324, 325, 327, 328, 331, 333, 335, 336, 337, 338, 339, 341, 343, 345, 347, 349, 351, 352, 353, 355, 357, 358, 359, 360, 361, 363, 366, 369, 370, 371, 374, 387, 390, 393, 396, 399, 401, 403, 406, 408, 410, 412, 415, 417, 418, 420, 422, 425, 427, 431, 433, 434, 436, 438, 439, 440, 441, 442, 443, 446, 447, 449, 451, 453, 455, 456, 458, 459, 479, 495, 498, 501, 504, 506, 509, 511, 513, 515, 517, 519, 522, 524, 527, 529, 531, 532, 535, 538, 539, 540, 543, 546, 548, 550, 551, 554, 556, 557, 559, 561, 562, 564, 566, 568, 570, 572, 574, 577, 580, 582, 585, 587, 588, 590, 592, 594, 595, 597, 599, 602, 605, 607, 610, 613, 615, 616, 618, 619, 621, 622, 624, 626, 627, 629, 631, 632, 633, 636, 650, 653, 656, 659, 661, 664, 667, 669, 672, 674, 676, 677, 679, 682, 684, 686, 688, 690, 692, 694, 696, 698, 701, 702, 703, 704, 707, 708, 710, 712, 714, 722, 725, 728, 731, 734, 736, 739, 741, 742, 744, 746, 747, 749, 751, 753, 755, 757, 759, 761, 764, 765, 766, 769, 771, 774, 775, 776, 777, 778, 780, 781, 782, 810, 813, 816, 819, 821, 824, 827, 829, 831, 833, 835, 837, 840, 843, 845, 846, 848, 850, 852, 854, 856, 859, 862, 863, 868, 871, 872, 874, 875, 876, 877, 878, 880, 884, 885, 906, 909, 912, 915, 917, 919, 921, 924, 926, 928, 931, 932, 935, 938, 940, 942, 944, 946, 948, 951, 953, 955, 957, 960, 962, 963, 965, 967, 969, 971, 974, 976, 977, 978, 979, 981, 996, 999, 1001, 1005, 1007, 1009, 1012, 1018, 1020, 1022, 1024
+    ],
+
+    getSpawnableIds: () => {
+        const lvl = Data.user.level || 1;
+        let maxId = 151; // Gen 1 (Lvl 1-75)
+
+        if (lvl >= 425) maxId = 1025;      // Gen 9
+        else if (lvl >= 375) maxId = 905;  // Gen 8
+        else if (lvl >= 325) maxId = 809;  // Gen 7
+        else if (lvl >= 275) maxId = 721;  // Gen 6
+        else if (lvl >= 225) maxId = 649;  // Gen 5
+        else if (lvl >= 175) maxId = 493;  // Gen 4
+        else if (lvl >= 125) maxId = 386;  // Gen 3
+        else if (lvl >= 76) maxId = 251;   // Gen 2
+
+        return Explore.allBaseIds.filter(id => id <= maxId);
+    },
+
     generateMap: () => {
         const map = document.getElementById('world-map');
         map.innerHTML = '';
         Explore.objects = [];
 
-        const baseIds = [
-          1, 4, 7, 10, 13, 16, 19, 21, 23, 27, 29, 32, 35, 37, 39, 41, 43, 46, 48, 50, 52, 54, 56, 58, 60, 63, 66, 69, 72, 74, 77, 79, 81, 83, 84, 86, 88, 90, 92, 95, 96, 98, 100, 102, 104, 106, 108, 109, 111, 113, 114, 115, 116, 118, 120, 122, 123, 124, 125, 126, 127, 128, 129, 131, 132, 133, 137, 138, 140, 142, 147, 152, 155, 158, 161, 163, 165, 167, 170, 172, 173, 174, 175, 177, 179, 183, 185, 187, 190, 191, 193, 194, 198, 200, 201, 202, 203, 204, 206, 207, 209, 211, 213, 214, 215, 216, 218, 220, 222, 223, 225, 227, 228, 231, 234, 235, 236, 238, 239, 240, 241, 246, 252, 255, 258, 261, 263, 265, 270, 273, 276, 278, 280, 283, 285, 287, 290, 293, 296, 298, 299, 300, 302, 304, 307, 309, 311, 312, 313, 314, 315, 316, 318, 320, 322, 324, 325, 327, 328, 331, 333, 335, 336, 337, 338, 339, 341, 343, 345, 347, 349, 351, 352, 353, 355, 357, 358, 359, 360, 361, 363, 366, 369, 370, 371, 374, 387, 390, 393, 396, 399, 401, 403, 406, 408, 410, 412, 415, 417, 418, 420, 422, 425, 427, 431, 433, 434, 436, 438, 439, 440, 441, 442, 443, 446, 447, 449, 451, 453, 455, 456, 458, 459, 479, 495, 498, 501, 504, 506, 509, 511, 513, 515, 517, 519, 522, 524, 527, 529, 531, 532, 535, 538, 539, 540, 543, 546, 548, 550, 551, 554, 556, 557, 559, 561, 562, 564, 566, 568, 570, 572, 574, 577, 580, 582, 585, 587, 588, 590, 592, 594, 595, 597, 599, 602, 605, 607, 610, 613, 615, 616, 618, 619, 621, 622, 624, 626, 627, 629, 631, 632, 633, 636, 650, 653, 656, 659, 661, 664, 667, 669, 672, 674, 676, 677, 679, 682, 684, 686, 688, 690, 692, 694, 696, 698, 701, 702, 703, 704, 707, 708, 710, 712, 714, 722, 725, 728, 731, 734, 736, 739, 741, 742, 744, 746, 747, 749, 751, 753, 755, 757, 759, 761, 764, 765, 766, 769, 771, 774, 775, 776, 777, 778, 780, 781, 782, 810, 813, 816, 819, 821, 824, 827, 829, 831, 833, 835, 837, 840, 843, 845, 846, 848, 850, 852, 854, 856, 859, 862, 863, 868, 871, 872, 874, 875, 876, 877, 878, 880, 884, 885, 906, 909, 912, 915, 917, 919, 921, 924, 926, 928, 931, 932, 935, 938, 940, 942, 944, 946, 948, 951, 953, 955, 957, 960, 962, 963, 965, 967, 969, 971, 974, 976, 977, 978, 979, 981, 996, 999, 1001, 1005, 1007, 1009, 1012, 1018, 1020, 1022, 1024 
-        ];
-
         let stops = Data.mapData ? Data.mapData.filter(o => o.type === 'stop') : [];
         let gyms = Data.mapData ? Data.mapData.filter(o => o.type === 'gym') : [];
         let raids = Data.mapData ? Data.mapData.filter(o => o.type === 'raid') : [];
+        let terminals = Data.mapData ? Data.mapData.filter(o => o.type === 'terminal') : [];
 
-        const validCounts = stops.length === 5 && gyms.length === 3 && raids.length === 3;
+        // Check validation (reduced count + terminal existence)
+        const validCounts = stops.length === 5 && gyms.length === 3 && raids.length === 3 && terminals.length >= 1;
 
         if (!validCounts || Data.mapData.length === 0) {
+            console.log("Regenerating Map with new constraints...");
             Data.mapData = [];
             const safeDistance = 200;
             const poiBuffer = 150;
@@ -66,7 +86,6 @@ const Explore = {
             };
 
             const isTooClose = (p, list, buffer) => {
-                // Dist from Player Start (1000,1000 is center of map div which is 2000x2000)
                 const distCenter = Math.sqrt(Math.pow(p.x - 1000, 2) + Math.pow(p.y - 1000, 2));
                 if (distCenter < safeDistance) return true;
 
@@ -88,17 +107,22 @@ const Explore = {
                 }
             };
 
+            addObjects(1, 'terminal'); // Add the new Terminal
             addObjects(5, 'stop');
             addObjects(3, 'gym');
             addObjects(3, 'raid');
 
-            for (let i = 0; i < 15; i++) {
+            // DYNAMIC SPAWNS BASED ON LEVEL
+            const spawnable = Explore.getSpawnableIds();
+
+            for (let i = 0; i < 7; i++) {
                 let p, tries = 0;
                 do {
                     p = getRandomPos();
                     tries++;
                 } while (isTooClose(p, objs, 100) && tries < 100);
-                const id = baseIds[Math.floor(Math.random() * baseIds.length)];
+
+                const id = spawnable[Math.floor(Math.random() * spawnable.length)];
                 objs.push({ x: p.x, y: p.y, type: 'wild', id: id });
             }
 
@@ -116,8 +140,16 @@ const Explore = {
                 el.innerHTML = `<div class="raid-timer">02:00</div>`;
             } else if (obj.type === 'stop') {
                 el.className = 'map-obj pokestop';
+            } else if (obj.type === 'terminal') {
+                // New Terminal Rendering
+                el.className = 'map-obj terminal';
+                el.innerHTML = `
+                    <div class="terminal-screen">LEADER<br>BOARD</div>
+                    <div class="terminal-stand"></div>
+                `;
             } else if (obj.type === 'wild') {
                 el.className = 'map-obj wild-spawn';
+                // If saved ID is out of range, might want to update it, but keeping it simple for now
                 el.innerHTML = `<img src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${obj.id}.png" width="80">`;
             }
             el.style.left = obj.x + 'px';
@@ -147,25 +179,19 @@ const Explore = {
 
                 if (dist < 50) {
                     if (obj.type === 'wild') {
-                        // Check if on cooldown
                         if (obj.cooldown && Date.now() < obj.cooldown) return;
-
                         Explore.triggerEncounter(obj.id, obj);
                         obj.el.style.display = 'none';
-
-                        // Set 60s cooldown
-                        obj.cooldown = Date.now() + 60000;
-
-                        // Respawn after 60 seconds
-                        setTimeout(() => {
-                            if (obj.el) obj.el.style.display = 'block';
-                        }, 60000);
+                        obj.cooldown = Date.now() + 260000;
+                        setTimeout(() => { if (obj.el) obj.el.style.display = 'block'; }, 260000);
                     } else if (obj.type === 'stop') {
                         Explore.spinStop(obj);
                     } else if (obj.type === 'gym') {
                         Explore.openGym(obj);
                     } else if (obj.type === 'raid') {
                         Explore.openRaid(obj);
+                    } else if (obj.type === 'terminal') {
+                        Explore.openLeaderboard(obj);
                     }
                 }
             });
@@ -173,8 +199,8 @@ const Explore = {
         Explore.frameId = requestAnimationFrame(Explore.update);
     },
 
+    // ... (Joystick setup remains same) ...
     joystick: { active: false, dx: 0, dy: 0, startX: 0, startY: 0 },
-
     setupJoystick: () => {
         const zone = document.getElementById('joystick-zone');
         const knob = document.getElementById('joystick-knob');
@@ -216,6 +242,14 @@ const Explore = {
         window.addEventListener('mouseup', end);
     },
 
+    // ... (Encounter/Stop/Gym logic remains same until openLeaderboard) ...
+    triggerEncounter: (id, objRef) => {
+        window.addEventListener('touchend', end);
+        zone.addEventListener('mousedown', start);
+        window.addEventListener('mousemove', move);
+        window.addEventListener('mouseup', end);
+    },
+
     triggerEncounter: (id, objRef) => {
         cancelAnimationFrame(Explore.frameId);
         Explore.isInteracting = true;
@@ -224,18 +258,18 @@ const Explore = {
         // SCIENTIFIC DATA: 
         // ---------------------------------------------------------
         const allBasePokemonIds = [
-          1, 4, 7, 10, 13, 16, 19, 21, 23, 27, 29, 32, 35, 37, 39, 41, 43, 46, 48, 50, 52, 54, 56, 58, 60, 63, 66, 69, 72, 74, 77, 79, 81, 83, 84, 86, 88, 90, 92, 95, 96, 98, 100, 102, 104, 106, 108, 109, 111, 113, 114, 115, 116, 118, 120, 122, 123, 124, 125, 126, 127, 128, 129, 131, 132, 133, 137, 138, 140, 142, 147, 152, 155, 158, 161, 163, 165, 167, 170, 172, 173, 174, 175, 177, 179, 183, 185, 187, 190, 191, 193, 194, 198, 200, 201, 202, 203, 204, 206, 207, 209, 211, 213, 214, 215, 216, 218, 220, 222, 223, 225, 227, 228, 231, 234, 235, 236, 238, 239, 240, 241, 246, 252, 255, 258, 261, 263, 265, 270, 273, 276, 278, 280, 283, 285, 287, 290, 293, 296, 298, 299, 300, 302, 304, 307, 309, 311, 312, 313, 314, 315, 316, 318, 320, 322, 324, 325, 327, 328, 331, 333, 335, 336, 337, 338, 339, 341, 343, 345, 347, 349, 351, 352, 353, 355, 357, 358, 359, 360, 361, 363, 366, 369, 370, 371, 374, 387, 390, 393, 396, 399, 401, 403, 406, 408, 410, 412, 415, 417, 418, 420, 422, 425, 427, 431, 433, 434, 436, 438, 439, 440, 441, 442, 443, 446, 447, 449, 451, 453, 455, 456, 458, 459, 479, 495, 498, 501, 504, 506, 509, 511, 513, 515, 517, 519, 522, 524, 527, 529, 531, 532, 535, 538, 539, 540, 543, 546, 548, 550, 551, 554, 556, 557, 559, 561, 562, 564, 566, 568, 570, 572, 574, 577, 580, 582, 585, 587, 588, 590, 592, 594, 595, 597, 599, 602, 605, 607, 610, 613, 615, 616, 618, 619, 621, 622, 624, 626, 627, 629, 631, 632, 633, 636, 650, 653, 656, 659, 661, 664, 667, 669, 672, 674, 676, 677, 679, 682, 684, 686, 688, 690, 692, 694, 696, 698, 701, 702, 703, 704, 707, 708, 710, 712, 714, 722, 725, 728, 731, 734, 736, 739, 741, 742, 744, 746, 747, 749, 751, 753, 755, 757, 759, 761, 764, 765, 766, 769, 771, 774, 775, 776, 777, 778, 780, 781, 782, 810, 813, 816, 819, 821, 824, 827, 829, 831, 833, 835, 837, 840, 843, 845, 846, 848, 850, 852, 854, 856, 859, 862, 863, 868, 871, 872, 874, 875, 876, 877, 878, 880, 884, 885, 906, 909, 912, 915, 917, 919, 921, 924, 926, 928, 931, 932, 935, 938, 940, 942, 944, 946, 948, 951, 953, 955, 957, 960, 962, 963, 965, 967, 969, 971, 974, 976, 977, 978, 979, 981, 996, 999, 1001, 1005, 1007, 1009, 1012, 1018, 1020, 1022, 1024 
+            1, 4, 7, 10, 13, 16, 19, 21, 23, 27, 29, 32, 35, 37, 39, 41, 43, 46, 48, 50, 52, 54, 56, 58, 60, 63, 66, 69, 72, 74, 77, 79, 81, 83, 84, 86, 88, 90, 92, 95, 96, 98, 100, 102, 104, 106, 108, 109, 111, 113, 114, 115, 116, 118, 120, 122, 123, 124, 125, 126, 127, 128, 129, 131, 132, 133, 137, 138, 140, 142, 147, 152, 155, 158, 161, 163, 165, 167, 170, 172, 173, 174, 175, 177, 179, 183, 185, 187, 190, 191, 193, 194, 198, 200, 201, 202, 203, 204, 206, 207, 209, 211, 213, 214, 215, 216, 218, 220, 222, 223, 225, 227, 228, 231, 234, 235, 236, 238, 239, 240, 241, 246, 252, 255, 258, 261, 263, 265, 270, 273, 276, 278, 280, 283, 285, 287, 290, 293, 296, 298, 299, 300, 302, 304, 307, 309, 311, 312, 313, 314, 315, 316, 318, 320, 322, 324, 325, 327, 328, 331, 333, 335, 336, 337, 338, 339, 341, 343, 345, 347, 349, 351, 352, 353, 355, 357, 358, 359, 360, 361, 363, 366, 369, 370, 371, 374, 387, 390, 393, 396, 399, 401, 403, 406, 408, 410, 412, 415, 417, 418, 420, 422, 425, 427, 431, 433, 434, 436, 438, 439, 440, 441, 442, 443, 446, 447, 449, 451, 453, 455, 456, 458, 459, 479, 495, 498, 501, 504, 506, 509, 511, 513, 515, 517, 519, 522, 524, 527, 529, 531, 532, 535, 538, 539, 540, 543, 546, 548, 550, 551, 554, 556, 557, 559, 561, 562, 564, 566, 568, 570, 572, 574, 577, 580, 582, 585, 587, 588, 590, 592, 594, 595, 597, 599, 602, 605, 607, 610, 613, 615, 616, 618, 619, 621, 622, 624, 626, 627, 629, 631, 632, 633, 636, 650, 653, 656, 659, 661, 664, 667, 669, 672, 674, 676, 677, 679, 682, 684, 686, 688, 690, 692, 694, 696, 698, 701, 702, 703, 704, 707, 708, 710, 712, 714, 722, 725, 728, 731, 734, 736, 739, 741, 742, 744, 746, 747, 749, 751, 753, 755, 757, 759, 761, 764, 765, 766, 769, 771, 774, 775, 776, 777, 778, 780, 781, 782, 810, 813, 816, 819, 821, 824, 827, 829, 831, 833, 835, 837, 840, 843, 845, 846, 848, 850, 852, 854, 856, 859, 862, 863, 868, 871, 872, 874, 875, 876, 877, 878, 880, 884, 885, 906, 909, 912, 915, 917, 919, 921, 924, 926, 928, 931, 932, 935, 938, 940, 942, 944, 946, 948, 951, 953, 955, 957, 960, 962, 963, 965, 967, 969, 971, 974, 976, 977, 978, 979, 981, 996, 999, 1001, 1005, 1007, 1009, 1012, 1018, 1020, 1022, 1024
         ];
 
         // ---------------------------------------------------------
         // YOUR GAME LOGIC
         // ---------------------------------------------------------
         const wildObj = objRef || Explore.objects.find(obj => obj.type === 'wild' && obj.id === id);
-        
+
         if (wildObj) {
             // Pick from the master list
             const newId = allBasePokemonIds[Math.floor(Math.random() * allBasePokemonIds.length)];
-            
+
             wildObj.id = newId;
 
             // Update in saved map data
@@ -264,9 +298,9 @@ const Explore = {
         obj.el.style.background = "#E91E63"; // Change color to purple
 
         // --- 1. DETERMINE REWARDS ---
-        
+
         // XP & Stardust
-        const xp = 300;
+        const xp = 500;
         const stardust = Math.floor(Math.random() * 101) + 100; // Random 100 to 200
 
         // Balls: 60% Poke, 30% Great, 10% Ultra
@@ -274,7 +308,7 @@ const Explore = {
         let ballType = 'Poke Ball';
         if (ballRoll > 0.90) ballType = 'Ultra Ball';
         else if (ballRoll > 0.60) ballType = 'Great Ball';
-        
+
         const ballCount = Math.floor(Math.random() * 3) + 2; // 2 to 4 items
 
         // Berries: Random selection
@@ -286,7 +320,7 @@ const Explore = {
         const berryCount = Math.floor(Math.random() * 2) + 1; // 1 to 2 items
 
         // --- 2. UPDATE DATA ---
-        
+
         // Helper to safely add items even if key doesn't exist yet
         const addItem = (name, amount) => {
             Data.inventory[name] = (Data.inventory[name] || 0) + amount;
@@ -295,12 +329,12 @@ const Explore = {
         addItem(ballType, ballCount);
         addItem(berryType, berryCount);
         addItem('Stardust', stardust); // Adds Stardust to inventory
-        
+
         Data.user.xp += xp;
 
         // Check Level Up
         if (Data.user.xp >= Data.user.nextLevelXp) setTimeout(Game.levelUp, 1000);
-        
+
         Game.save();
         UI.updateHUD();
 
@@ -374,11 +408,42 @@ const Explore = {
         }
     },
 
+    // --- LEADERBOARD LOGIC ---
+    openLeaderboard: (obj) => {
+        if (Explore.isInteracting) return;
+        Explore.isInteracting = true;
+        Explore.joystick.active = false;
+
+        const modal = document.getElementById('leaderboard-modal');
+        modal.style.display = 'flex';
+
+        // Populate
+        const highScore = Data.user.raidHighScore || 0;
+        const container = document.getElementById('leaderboard-entries');
+
+        // Currently singular, but architected for rows
+        container.innerHTML = `
+            <div class="leaderboard-score-row">
+                <span>PLAYER 1</span>
+                <span>${highScore.toLocaleString()} DMG</span>
+            </div>
+            <div style="text-align:center; font-size:10px; color:#666; margin-top:5px;">
+                (HIGHEST TOTAL DAMAGE IN A SINGLE RAID)
+            </div>
+        `;
+    },
+
+    closeLeaderboard: () => {
+        document.getElementById('leaderboard-modal').style.display = 'none';
+        Explore.isInteracting = false;
+        Explore.joystick.active = false;
+        Explore.x += 10; // Bump player away to prevent instant reproc
+    },
+
     deployDefender: () => {
         UI.openStorage(true, (index) => {
             const p = Data.storage[index];
             if (!p) { UI.closeStorage(); return; }
-            // Store complete Pokemon object with all properties
             Data.gymDefenders = [{ ...p, start: Date.now() }];
             Data.storage.splice(index, 1);
             Game.save();
@@ -398,8 +463,7 @@ const Explore = {
         Data.candyBag[def.family] += earned;
         UI.spawnFloatText(`+${earned} ${def.family} Candy`, window.innerWidth / 2, window.innerHeight / 2, "#E91E63");
 
-        // Return complete Pokemon object with all original properties preserved
-        const { start: _, ...pokemonData } = def; // Remove 'start' property, keep everything else
+        const { start: _, ...pokemonData } = def;
         Data.storage.unshift(pokemonData);
 
         Data.gymDefenders = [];
@@ -412,8 +476,7 @@ const Explore = {
 
     openRaid: (obj) => {
         if (Explore.isInteracting) return;
-        
-        // 1. CHECK COOLDOWN
+
         if (obj.cooldown && Date.now() < obj.cooldown) {
             const timeLeft = Math.ceil((obj.cooldown - Date.now()) / 1000);
             UI.spawnFloatText(`Raid Cooldown: ${timeLeft}s`, window.innerWidth / 2, window.innerHeight / 2, "red");
@@ -426,17 +489,13 @@ const Explore = {
         modal.style.display = 'flex';
         Explore.joystick.active = false;
 
-        // 2. GENERATE RANDOM BOSS (If one isn't assigned yet)
-        // This runs if it's a fresh raid or after a previous win reset it
         if (!obj.bossId) {
-            // Expanded pool of Legendaries and fully evolved strong mons
             const raidPool = [
-                3, 6, 9, 65, 94, 130, 143, 149, // Venasaur, Charizard, Blastoise, Alakazam, Gengar, Gyarados, Snorlax, Dragonite
-                144, 145, 146, 150, 243, 244, 245, 248, 249, 250, 384, 382, 383 // Legendaries
-            ]; 
+                3, 6, 9, 65, 94, 130, 143, 149,
+                144, 145, 146, 150, 243, 244, 245, 248, 249, 250, 384, 382, 383
+            ];
             obj.bossId = raidPool[Math.floor(Math.random() * raidPool.length)];
-            
-            // Save to map data so it persists if you run away and come back
+
             const mapObj = Data.mapData.find(item => item.x === obj.x && item.y === obj.y && item.type === obj.type);
             if (mapObj) mapObj.bossId = obj.bossId;
             Game.save();
@@ -445,11 +504,9 @@ const Explore = {
         Explore.currentRaidBossId = obj.bossId;
         document.getElementById('raid-boss-img').src = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${obj.bossId}.png`;
 
-        // 3. CALCULATE DIFFICULTY DISPLAY
         const difficultyLvl = (Data.user.raidWins || 0) + 1;
         const bossHpEstimate = 5000 + ((difficultyLvl - 1) * 500);
 
-        // RENDER TEAM
         document.getElementById('battle-team').innerHTML = `
             <div style="text-align:center; width:100%;">
                 <h3 style="color:#F44336; margin:0;">RAID LEVEL ${difficultyLvl}</h3>
@@ -460,12 +517,10 @@ const Explore = {
         `;
 
         const slotsDiv = document.getElementById('raid-team-slots');
-        // Sort Pokemon by CP (highest first) and select top 3
         const sortedPokemon = [...Data.storage].sort((a, b) => (b.cp || 0) - (a.cp || 0));
         for (let i = 0; i < 3; i++) {
             const mon = sortedPokemon[i];
             if (mon) {
-                // Ensure Moves/HP exist (backwards compat)
                 if (!mon.moves) mon.moves = [{ name: 'Tackle', power: 20 }, { name: 'Struggle', power: 30 }];
                 if (!mon.maxHp) mon.maxHp = Math.floor(mon.cp / 10) + 50;
 
@@ -486,21 +541,15 @@ const Explore = {
 
     startRaidBattle: () => {
         document.getElementById('btn-start-raid').style.display = 'none';
-
-        // --- DIFFICULTY SCALING ---
-        // Get number of wins, default to 0
         const raidWins = Data.user.raidWins || 0;
-        
-        // Base HP 5000 + 500 for every previous win
         let maxBossHp = 5000 + (raidWins * 500);
         let bossHp = maxBossHp;
-        
-        // Base Damage 30 + 2 for every previous win
         const baseBossDamage = 30 + (raidWins * 2);
 
-        let pokes = []; // { index, curHp, maxHp, moves, elId }
+        // DAMAGE TRACKING
+        let totalDamageDealt = 0;
 
-        // Use same sorted array as display
+        let pokes = [];
         const sortedPokemon = [...Data.storage].sort((a, b) => (b.cp || 0) - (a.cp || 0));
         for (let i = 0; i < 3; i++) {
             const m = sortedPokemon[i];
@@ -524,12 +573,11 @@ const Explore = {
             // 1. PLAYERS ATTACK
             pokes.forEach(p => {
                 if (p.curHp > 0) {
-                    // Pick Random Move
                     const move = p.moves[Math.floor(Math.random() * p.moves.length)];
                     const dmg = Math.floor(move.power + (Math.random() * 20));
                     bossHp -= dmg;
+                    totalDamageDealt += dmg; // Track damage
 
-                    // Show Float Text on Boss
                     const bossRect = document.getElementById('raid-boss-img').getBoundingClientRect();
                     const jitterX = (Math.random() - 0.5) * 50;
                     const jitterY = (Math.random() - 0.5) * 50;
@@ -537,11 +585,9 @@ const Explore = {
                 }
             });
 
-            // Update Boss Bar
             const pct = Math.max(0, (bossHp / maxBossHp) * 100);
             document.getElementById('raid-hp-fill').style.width = pct + '%';
 
-            // Boss Anim
             const bossImg = document.getElementById('raid-boss-img');
             bossImg.classList.add('attack-anim');
             setTimeout(() => bossImg.classList.remove('attack-anim'), 200);
@@ -550,18 +596,13 @@ const Explore = {
             const alive = pokes.filter(p => p.curHp > 0);
             if (alive.length > 0) {
                 const victim = alive[Math.floor(Math.random() * alive.length)];
-                
-                // Scaled Damage
-                const bossDmg = Math.floor(Math.random() * 40) + baseBossDamage; 
-                
+                const bossDmg = Math.floor(Math.random() * 40) + baseBossDamage;
                 victim.curHp -= bossDmg;
 
-                // Update Victim Bar
                 const vBar = document.getElementById(`hp-bar-${victim.idx}`);
                 const vPct = Math.max(0, (victim.curHp / victim.maxHp) * 100);
                 if (vBar) vBar.style.width = vPct + '%';
 
-                // Anim Victim Shake
                 const vSlot = document.getElementById(`raid-slot-${victim.idx}`);
                 if (vSlot) {
                     vSlot.style.transform = 'translate(2px, 2px)';
@@ -570,44 +611,66 @@ const Explore = {
             }
 
             // 3. CHECK END CONDITIONS
-            if (bossHp <= 0) {
+            const hasEnded = bossHp <= 0 || (alive.length === 0 && pokes.length > 0);
+
+            if (hasEnded) {
                 clearInterval(Explore.raidInterval);
-                // --- WIN ---
-                UI.spawnFloatText("RAID WON!", window.innerWidth / 2, window.innerHeight / 2, "#FFC107");
 
-                // Increase Win Count (for difficulty scaling)
-                Data.user.raidWins = (Data.user.raidWins || 0) + 1;
-
-                // Set Cooldown
-                if (Explore.currentRaidObj) {
-                    Explore.currentRaidObj.cooldown = Date.now() + 120000;
-                    // RESET BOSS ID: This ensures next time you come back, it's a random new boss
-                    Explore.currentRaidObj.bossId = null; 
-                    
-                    // Clear from map data too
-                    const mapObj = Data.mapData.find(item => item.x === Explore.currentRaidObj.x && item.y === Explore.currentRaidObj.y && item.type === 'raid');
-                    if(mapObj) mapObj.bossId = null;
+                // LEADERBOARD UPDATE
+                // We update score regardless of win/loss, as goal is "total damage dealt" in that attempt? 
+                // "Highest damage dealt to a raid boss". Assuming per-attempt.
+                if (totalDamageDealt > (Data.user.raidHighScore || 0)) {
+                    Data.user.raidHighScore = totalDamageDealt;
+                    UI.spawnFloatText(`NEW HIGH SCORE: ${totalDamageDealt}!`, window.innerWidth / 2, window.innerHeight / 2 + 50, "#0f0");
+                } else {
+                    UI.spawnFloatText(`Total Dmg: ${totalDamageDealt}`, window.innerWidth / 2, window.innerHeight / 2 + 50, "#ccc");
                 }
-                
-                Game.save();
 
-                setTimeout(() => {
-                    Explore.closeRaid();
-                    // TRIGGER CATCH
-                    Explore.triggerEncounter(Explore.currentRaidBossId);
-                }, 2000);
-            } else if (alive.length === 0 && pokes.length > 0) { 
-                clearInterval(Explore.raidInterval);
-                // --- LOSE ---
-                // Do NOT reset boss ID. If they try again immediately, they fight the same boss.
-                UI.spawnFloatText("TEAM FAINTED!", window.innerWidth / 2, window.innerHeight / 2, "red");
-                setTimeout(() => {
-                    Explore.closeRaid();
-                    // Just return to map
-                }, 2000);
+                if (bossHp <= 0) {
+                    // WIN
+                    UI.spawnFloatText("RAID WON!", window.innerWidth / 2, window.innerHeight / 2, "#FFC107");
+
+                    // --- CANDY REWARDS FOR TEAM ---
+                    let delay = 300;
+                    pokes.forEach(p => {
+                        const originalMon = sortedPokemon[p.idx];
+                        if (originalMon) {
+                            const family = originalMon.family || originalMon.name;
+                            const amount = Math.floor(Math.random() * 16) + 10; // 10-25
+
+                            if (!Data.candyBag[family]) Data.candyBag[family] = 0;
+                            Data.candyBag[family] += amount;
+
+                            setTimeout(() => {
+                                UI.spawnFloatText(`+${amount} ${family} Candy`, window.innerWidth / 2, window.innerHeight / 2 - 50, "#E91E63");
+                            }, delay);
+                            delay += 400;
+                        }
+                    });
+
+                    Data.user.raidWins = (Data.user.raidWins || 0) + 1;
+                    if (Explore.currentRaidObj) {
+                        Explore.currentRaidObj.cooldown = Date.now() + 120000;
+                        Explore.currentRaidObj.bossId = null;
+                        const mapObj = Data.mapData.find(item => item.x === Explore.currentRaidObj.x && item.y === Explore.currentRaidObj.y && item.type === 'raid');
+                        if (mapObj) mapObj.bossId = null;
+                    }
+                    Game.save();
+                    setTimeout(() => {
+                        Explore.closeRaid();
+                        Explore.triggerEncounter(Explore.currentRaidBossId);
+                    }, 2000 + delay); // Wait for candies to show
+                } else {
+                    // LOSE
+                    UI.spawnFloatText("TEAM FAINTED!", window.innerWidth / 2, window.innerHeight / 2, "red");
+                    Game.save(); // Save the score update
+                    setTimeout(() => {
+                        Explore.closeRaid();
+                    }, 2000);
+                }
             }
 
-        }, 1200); 
+        }, 1200);
     },
 
     closeRaid: () => {
@@ -615,6 +678,6 @@ const Explore = {
         document.getElementById('raid-modal').style.display = 'none';
         Explore.joystick.active = false;
         Explore.isInteracting = false;
-        Explore.x += 10;
+        Explore.x += 100;
     }
 };

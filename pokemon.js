@@ -9,6 +9,47 @@ const PokeDetail = {
 
     open: (storageIndex) => {
         PokeDetail.currentIndex = storageIndex;
+        const p = Data.storage[PokeDetail.currentIndex];
+
+        // --- EVOLUTION REPAIR / UPGRADE ---
+        // Ensure every Pokemon has an evoMap for reliable evolution
+        if (p && (!p.evoMap || (!p.nextId && !p.checkedEvo))) {
+            console.log("Upgrading evolution data for:", p.name);
+            p.checkedEvo = true;
+
+            fetch(`https://pokeapi.co/api/v2/pokemon-species/${p.id}`)
+                .then(r => r.json())
+                .then(species => fetch(species.evolution_chain.url))
+                .then(r => r.json())
+                .then(evoData => {
+                    // Build Evo Map
+                    const evoMap = {};
+                    const getUrlId = (url) => parseInt(url.split('/').filter(Boolean).pop());
+
+                    const traverseEvo = (node) => {
+                        const currentId = getUrlId(node.species.url);
+                        if (node.evolves_to && node.evolves_to.length > 0) {
+                            evoMap[currentId] = node.evolves_to.map(n => getUrlId(n.species.url));
+                            node.evolves_to.forEach(traverseEvo);
+                        }
+                    };
+                    traverseEvo(evoData.chain);
+                    p.evoMap = evoMap;
+
+                    // Update nextId if missing
+                    if (!p.nextId && evoMap[p.id]) {
+                        p.nextId = evoMap[p.id][0]; // Default to first
+                        console.log("Restored nextId:", p.nextId);
+                    }
+
+                    Game.save();
+                    if (PokeDetail.currentIndex === storageIndex) {
+                        PokeDetail.render();
+                    }
+                })
+                .catch(e => console.log("Evolution upgrade failed:", e));
+        }
+
         PokeDetail.render();
         document.getElementById('pokemon-detail-screen').classList.add('active');
     },
@@ -33,7 +74,7 @@ const PokeDetail = {
         const candy = (Data.candyBag && Data.candyBag[familyName]) ? Data.candyBag[familyName] : 0;
 
         const canEvolve = p.nextId && p.nextId !== null;
-        
+
         // Determine dynamic evolve cost for Display
         const currentEvolveCost = p.evolveCost || 25;
 
@@ -163,7 +204,7 @@ const PokeDetail = {
             // INCREASE MOVE POWER
             if (p.moves && p.moves.length > 0) {
                 p.moves.forEach(move => {
-                    const moveBoost = Math.floor(Math.random() * 6) + 3; 
+                    const moveBoost = Math.floor(Math.random() * 6) + 3;
                     move.power += moveBoost;
                 });
             } else {
@@ -183,10 +224,10 @@ const PokeDetail = {
 
     evolve: () => {
         const p = Data.storage[PokeDetail.currentIndex];
-        
+
         // --- 1. DETERMINE COST ---
         const currentCost = p.evolveCost || 25;
-        const familyName = p.family || p.name; 
+        const familyName = p.family || p.name;
 
         if (!p.nextId) {
             UI.toast("Cannot evolve further!", "gray");
@@ -202,16 +243,16 @@ const PokeDetail = {
 
             // --- 3. APPLY EVOLUTION & STAT BOOSTS ---
             const oldId = p.id;
-            p.id = p.nextId; 
-            
+            p.id = p.nextId;
+
             // Boost CP (Multiplied by 1.6)
             p.cp = Math.floor(p.cp * 1.6);
-            
+
             // Boost Attacks (Permanent Power Increase)
             if (p.moves && Array.isArray(p.moves)) {
                 p.moves.forEach(move => {
                     // Add +10 to +20 power
-                    const boost = Math.floor(Math.random() * 11) + 10; 
+                    const boost = Math.floor(Math.random() * 11) + 10;
                     move.power = (move.power || 20) + boost;
                 });
             } else {
@@ -224,89 +265,43 @@ const PokeDetail = {
             PokeDetail.render();
             document.querySelector('.pd-hero').classList.add('evolve-flash');
 
-            // --- 4. FETCH DATA ---
+            // --- 4. FETCH DATA (NAME ONLY) ---
             fetch(`https://pokeapi.co/api/v2/pokemon/${p.id}`)
                 .then(r => r.json())
                 .then(d => {
-                    // A. SET NAME IMMEDIATELY
-                    // This ensures that even if the evolution chain check fails later, 
-                    // we still have the correct name (e.g. "Marowak") instead of "Evolved Form".
+                    // A. SET NAME
                     p.name = d.name.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                    
-                    // Save RIGHT NOW to lock in the name
-                    Game.save();
-                    PokeDetail.render(); 
 
-                    // B. Fetch Species Data for Next Evolution Check
-                    return fetch(d.species.url);
-                })
-                .then(r => r.json())
-                .then(sd => fetch(sd.evolution_chain.url))
-                .then(r => r.json())
-                .then(evoData => {
-                    
-                    // --- 5. FIND NEXT EVOLUTION ID ---
-                    const chain = evoData.chain;
-                    let nextNextId = null;
-                    
-                    const getUrlId = (url) => {
-                        const parts = url.split('/').filter(Boolean);
-                        return parseInt(parts.pop());
-                    };
+                    // B. UPDATE NEXT ID (Using Local EvoMap)
+                    if (p.evoMap) {
+                        const nexts = p.evoMap[p.id];
+                        // If specific evolution triggered (e.g. Eevee), we might need logic here.
+                        // For now, default to first (consistent with spawn logic).
+                        p.nextId = (nexts && nexts.length > 0) ? nexts[0] : null;
+                    } else {
+                        // Fallback if no map (should be rare due to auto-upgrade in open())
+                        p.nextId = null;
+                    }
 
-                    // Recursive search to find CURRENT Pokemon in the chain
-                    const findNext = (node) => {
-                        const nodeId = getUrlId(node.species.url);
-                        
-                        // Compare as Numbers to be strictly safe
-                        if (nodeId === parseInt(p.id)) {
-                            // We found the current form! Does it have a child?
-                            if (node.evolves_to.length > 0) {
-                                nextNextId = getUrlId(node.evolves_to[0].species.url);
-                            }
-                        } else {
-                            // Keep looking deeper
-                            node.evolves_to.forEach(child => findNext(child));
-                        }
-                    };
-
-                    findNext(chain);
-
-                    // Update nextId for the NEXT time they want to evolve
-                    p.nextId = nextNextId;
-                    
                     // --- COST DOUBLING LOGIC ---
-                    // 25 -> 50 -> 100. Caps at 100.
                     let newCost = currentCost * 2;
                     if (newCost > 100) newCost = 100;
                     p.evolveCost = newCost;
 
                     Game.save();
-                    PokeDetail.render(); 
-                    
+                    PokeDetail.render();
+
                     UI.toast(`Success! Evolved to ${p.name}!`, "#9C27B0");
                     setTimeout(() => {
                         const hero = document.querySelector('.pd-hero');
-                        if(hero) hero.classList.remove('evolve-flash');
+                        if (hero) hero.classList.remove('evolve-flash');
                     }, 1000);
                 })
                 .catch((err) => {
-                    console.error("Evolution Data Error:", err);
-                    
-                    // --- THE FIX ---
-                    // Only overwrite the name if we truly failed to get it earlier.
-                    // If p.name is "Marowak", leave it alone!
-                    if (p.name === "Evolving...") {
-                        p.name = "Evolved Form";
-                    }
-
-                    // If we failed to find the chain, set nextId to null 
-                    // so the user isn't stuck with a broken evolve button.
-                    p.nextId = null;
-                    
+                    console.error("Evolution Name Error:", err);
+                    if (p.name === "Evolving...") p.name = "Evolved Form";
                     Game.save();
                     PokeDetail.render();
-                    UI.toast("Evolved, but next evolution data unavailable.", "orange");
                 });
 
         } else {
@@ -320,9 +315,9 @@ const PokeDetail = {
 
         // --- CONFIRMATION DIALOG ---
         if (confirm(`Are you sure you want to transfer ${p.name} to the Professor?\n\nYou will lose this Pokemon and receive 5 Candy.`)) {
-            
+
             const familyName = p.family || p.name;
-            
+
             // --- 1. ADD CANDY ---
             if (!Data.candyBag[familyName]) Data.candyBag[familyName] = 0;
             Data.candyBag[familyName] += 5;
@@ -333,10 +328,10 @@ const PokeDetail = {
 
             // --- 3. SAVE AND EXIT ---
             Game.save();
-            
+
             // Close the detail view because the Pokemon is gone
             PokeDetail.close();
-            
+
             // Show toast message
             UI.toast(`Transferred! +5 ${familyName} Candy`, "#2196F3");
         }
