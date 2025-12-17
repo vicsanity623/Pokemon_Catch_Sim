@@ -475,8 +475,22 @@ const Explore = {
         // Set 60s cooldown
         if (Explore.currentGymObj) {
             Explore.currentGymObj.cooldown = Date.now() + 60000;
-            // Force redraw to show/hide defender on map
-            Explore.generateMap();
+
+            // FIX: Update visuals manually instead of regenerating map
+            const obj = Explore.currentGymObj;
+            const el = obj.el;
+
+            if (el) {
+                if (obj.defender) {
+                    el.innerHTML = `
+                        <div class="gym-dome" style="border-color:#FF5722;"></div>
+                        <img src="${ASSETS.poke + obj.defender.id + '.png'}" 
+                             style="position:absolute; width:40px; height:40px; top:50%; left:50%; transform:translate(-50%, -60%); z-index:2;">
+                     `;
+                } else {
+                    el.innerHTML = `<div class="gym-dome"></div>`;
+                }
+            }
         }
     },
 
