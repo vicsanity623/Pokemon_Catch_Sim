@@ -1,5 +1,6 @@
-const DailyRewards = {
+window.DailyRewards = {
     schedule: [
+        { day: 0, label: "Day 0", img: "rare-candy.png", rewards: { 'XP': 100 } }, // NEW DAY 0 (XP Icon)
         { day: 1, label: "Day 1", img: "poke-ball.png", rewards: { 'Poke Ball': 100, 'Stardust': 500 } },
         { day: 2, label: "Day 2", img: "great-ball.png", rewards: { 'Great Ball': 20, 'Stardust': 1000 } },
         { day: 3, label: "Day 3", img: "razz-berry.png", rewards: { 'Razz Berry': 20, 'Stardust': 1500 } },
@@ -11,39 +12,19 @@ const DailyRewards = {
 
     // State
     isAvailable: false,
-    currentStreak: 0,
+    currentStep: 0,
 
     init: () => {
-        // Just call check to set initial state
         DailyRewards.check();
     },
 
     check: () => {
-        if (typeof Data === 'undefined') return;
-
         const now = new Date();
         const todayKey = `${now.getUTCFullYear()}-${now.getUTCMonth() + 1}-${now.getUTCDate()}`;
         const lastClaim = localStorage.getItem('daily_last_claim');
-        let streak = parseInt(localStorage.getItem('daily_streak') || 0);
 
-        // Calculate Streak for Display
-        if (lastClaim) {
-            const yesterday = new Date(now);
-            yesterday.setUTCDate(now.getUTCDate() - 1);
-            const yesterdayKey = `${yesterday.getUTCFullYear()}-${yesterday.getUTCMonth() + 1}-${yesterday.getUTCDate()}`;
-
-            // If we missed a day, reset visual streak (unless we are claiming today to restore it?)
-            // Actually, simpler: if last claim wasn't yesterday or today, streak is broken.
-            const d1 = new Date(lastClaim);
-            const d2 = new Date(todayKey);
-            const diffTime = Math.abs(d2 - d1);
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-            if (lastClaim !== todayKey && lastClaim !== yesterdayKey) {
-                // Streak broken effectively, but we don't reset DB until claim
-                // For UI we can show streak 1
-            }
-        }
+        let step = parseInt(localStorage.getItem('daily_streak'));
+        if (isNaN(step)) step = 0;
 
         if (lastClaim === todayKey) {
             DailyRewards.isAvailable = false;
@@ -51,13 +32,30 @@ const DailyRewards = {
             DailyRewards.isAvailable = true;
         }
 
-        DailyRewards.currentStreak = streak;
+        DailyRewards.currentStep = step;
         DailyRewards.updateIcon();
+
+        // Auto-open for NEW players
+        if (DailyRewards.isAvailable && step === 0 && !sessionStorage.getItem('daily_shown')) {
+            setTimeout(() => {
+                DailyRewards.openUI();
+                sessionStorage.setItem('daily_shown', 'true');
+            }, 1500);
+        }
     },
 
     updateIcon: () => {
         const dot = document.getElementById('daily-dot');
         if (dot) dot.style.display = DailyRewards.isAvailable ? 'block' : 'none';
+
+        const btn = document.getElementById('btn-daily-calendar');
+        if (btn) {
+            if (DailyRewards.isAvailable) {
+                btn.style.animation = 'pulse 2s infinite';
+            } else {
+                btn.style.animation = 'none';
+            }
+        }
     },
 
     openUI: () => {
@@ -68,75 +66,56 @@ const DailyRewards = {
         modal.style.display = 'flex';
         grid.innerHTML = '';
 
-        // Determine effective streak for display
-        // If available, the streak will be current + 1 (unless 7)
-        let displayDay = DailyRewards.currentStreak;
+        const step = DailyRewards.currentStep;
 
-        const now = new Date();
-        const todayKey = `${now.getUTCFullYear()}-${now.getUTCMonth() + 1}-${now.getUTCDate()}`;
-        const lastClaim = localStorage.getItem('daily_last_claim');
-
-        // Logic: 
-        // If claimed today, we verify streak is correct in DB.
-        // If not claimed, we predict next streak.
-
-        let nextDay = DailyRewards.currentStreak + 1;
-
-        // Reset check
-        if (DailyRewards.isAvailable && lastClaim) {
-            const yesterday = new Date(now);
-            yesterday.setUTCDate(now.getUTCDate() - 1);
-            const yesterdayKey = `${yesterday.getUTCFullYear()}-${yesterday.getUTCMonth() + 1}-${yesterday.getUTCDate()}`;
-            if (lastClaim !== yesterdayKey) nextDay = 1;
-        } else if (DailyRewards.isAvailable && !lastClaim) {
-            nextDay = 1;
-        }
-
-        if (nextDay > 7) nextDay = 1;
-
-        // Render Cards
         DailyRewards.schedule.forEach(d => {
             const el = document.createElement('div');
             el.className = 'daily-day';
 
-            // Logic for styling
-            // Active: The day we are about to claim
-            // Claimed: Days already passed in current streak
-
-            if (DailyRewards.isAvailable) {
-                if (d.day < nextDay) el.classList.add('claimed');
-                if (d.day === nextDay) el.classList.add('active');
+            if (d.day < step) {
+                el.classList.add('claimed');
+            } else if (d.day === step) {
+                if (DailyRewards.isAvailable) {
+                    el.classList.add('active');
+                    el.style.border = '2px solid #FF9800';
+                    el.style.transform = 'scale(1.1)';
+                } else {
+                    el.style.opacity = '0.6';
+                    el.style.border = '2px solid #ccc';
+                }
             } else {
-                // Determine based on current streak (which includes today)
-                if (d.day <= DailyRewards.currentStreak) el.classList.add('claimed');
+                el.style.opacity = '0.4';
             }
 
-            // Image Mapping
             let imgSrc = d.img;
-            // Use existing assets
-            if (imgSrc.includes('ball') || imgSrc.includes('berry')) {
-                imgSrc = ASSETS.item + imgSrc;
-            } else {
-                imgSrc = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/rare-candy.png';
+            if (!imgSrc) imgSrc = 'poke-ball.png';
+
+            const assetsItem = (typeof ASSETS !== 'undefined') ? ASSETS.item : 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/';
+
+            // Allow berries, balls, AND candy to use standard asset path (or rely on full url if needed)
+            // If it has .png but no http, assume it's an asset item
+            if (imgSrc.indexOf('http') === -1) {
+                imgSrc = assetsItem + imgSrc;
             }
 
             el.innerHTML = `
                 <div class="daily-day-num">${d.label}</div>
-                <img src="${imgSrc}">
+                <img src="${imgSrc}" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png'">
                 <span>${Object.keys(d.rewards)[0]}</span>
             `;
             grid.appendChild(el);
         });
 
-        // Setup Button
         if (DailyRewards.isAvailable) {
             btn.disabled = false;
             btn.innerText = "CLAIM REWARD";
             btn.style.background = "#FF9800";
+            btn.style.cursor = "pointer";
         } else {
             btn.disabled = true;
             btn.innerText = "COME BACK TOMORROW";
             btn.style.background = "#ccc";
+            btn.style.cursor = "default";
         }
     },
 
@@ -145,57 +124,68 @@ const DailyRewards = {
 
         const now = new Date();
         const todayKey = `${now.getUTCFullYear()}-${now.getUTCMonth() + 1}-${now.getUTCDate()}`;
-        const lastClaim = localStorage.getItem('daily_last_claim');
-        let streak = parseInt(localStorage.getItem('daily_streak') || 0);
 
-        // Reset check logic again
-        if (lastClaim) {
-            const yesterday = new Date(now);
-            yesterday.setUTCDate(now.getUTCDate() - 1);
-            const yesterdayKey = `${yesterday.getUTCFullYear()}-${yesterday.getUTCMonth() + 1}-${yesterday.getUTCDate()}`;
+        let step = DailyRewards.currentStep;
+        if (step < 0 || step >= DailyRewards.schedule.length) step = 1;
 
-            if (lastClaim === yesterdayKey) {
-                streak++;
-            } else {
-                streak = 1;
+        const reward = DailyRewards.schedule.find(s => s.day === step) || DailyRewards.schedule[0];
+
+        let msg = "";
+        for (let key in reward.rewards) {
+            const qty = reward.rewards[key];
+            if (typeof Data !== 'undefined') {
+                if (key === 'XP') {
+                    if (!Data.user) Data.user = { xp: 0 };
+                    Data.user.xp += qty;
+                    msg += `+${qty} XP `;
+                } else {
+                    if (!Data.inventory) Data.inventory = {};
+                    if (!Data.inventory[key]) Data.inventory[key] = 0;
+                    Data.inventory[key] += qty;
+                    msg += `+${qty} ${key} `;
+                }
             }
-        } else {
-            streak = 1;
         }
 
-        if (streak > 7) streak = 1;
+        let nextStep = step + 1;
+        if (step >= 7) nextStep = 1;
 
         // SAVE
         localStorage.setItem('daily_last_claim', todayKey);
-        localStorage.setItem('daily_streak', streak);
+        localStorage.setItem('daily_streak', nextStep);
 
-        // Grant Items
-        const reward = DailyRewards.schedule[streak - 1];
-        let msg = "";
+        if (typeof Game !== 'undefined') Game.save();
+        if (typeof UI !== 'undefined') UI.updateHUD();
 
-        for (let key in reward.rewards) {
-            const qty = reward.rewards[key];
-            if (key === 'XP') {
-                Data.user.xp += qty;
-                msg += `+${qty} XP `;
-            } else {
-                if (!Data.inventory[key]) Data.inventory[key] = 0;
-                Data.inventory[key] += qty;
-                msg += `+${qty} ${key} `;
-            }
-        }
+        DailyRewards.check();
+        // DailyRewards.openUI(); // Do NOT re-open UI, per request
 
-        Game.save();
-        UI.updateHUD();
-        DailyRewards.check(); // Update state
-        DailyRewards.openUI(); // Re-render UI to show claimed state logic
+        // CLOSE MODAL IMMEDIATELY
+        document.getElementById('daily-modal').style.display = 'none';
 
-        UI.toast(msg, "#4CAF50");
+        // Custom Float Text (4 Seconds)
+        const floatEl = document.createElement('div');
+        floatEl.className = 'float-text';
+        floatEl.innerText = msg.trim();
+        floatEl.style.left = (window.innerWidth / 2) + 'px';
+        floatEl.style.top = (window.innerHeight / 2) + 'px';
+        floatEl.style.color = '#FF9800'; // Orange
+        floatEl.style.fontSize = '36px';
+        floatEl.style.zIndex = '3000';
+        floatEl.style.textShadow = '0 2px 5px rgba(0,0,0,0.5)';
+        // Override animation duration
+        floatEl.style.animation = 'floatUp 4s ease-out forwards';
 
-        // Confetti/Sparkle
+        document.body.appendChild(floatEl);
+
+        setTimeout(() => floatEl.remove(), 4000);
+
+        // Confetti
         for (let i = 0; i < 20; i++) {
             setTimeout(() => {
-                FX.sparkle(window.innerWidth / 2 + (Math.random() - 0.5) * 300, window.innerHeight / 2 + (Math.random() - 0.5) * 300);
+                if (window.FX && FX.sparkle) {
+                    FX.sparkle(window.innerWidth / 2 + (Math.random() - 0.5) * 300, window.innerHeight / 2 + (Math.random() - 0.5) * 300);
+                }
             }, i * 50);
         }
     }
