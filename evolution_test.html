@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Evolution Logic Test Suite</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #f0f0f0;
+            padding: 20px;
+        }
+
+        h1 {
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+
+        .test-case {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+            background: #2a2a2a;
+        }
+
+        .pass {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .fail {
+            color: #F44336;
+            font-weight: bold;
+        }
+
+        .info {
+            color: #aaa;
+            margin-left: 20px;
+            font-size: 0.9em;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background: #1976D2;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Pokemon Evolution Map Test Suite</h1>
+    <p>Verifying the creation of `evoMap` for various evolution types (3-stage, branching, single).</p>
+    <button onclick="runTests()">RUN ALL TESTS</button>
+    <div id="results"></div>
+
+    <script>
+        const getUrlId = (url) => parseInt(url.split('/').filter(Boolean).pop());
+
+        // The core logic extracted from Game.spawn
+        function buildEvoMapFromChain(chainNode) {
+            const evoMap = {};
+            const traverseEvo = (node) => {
+                const currentId = getUrlId(node.species.url);
+                if (node.evolves_to && node.evolves_to.length > 0) {
+                    evoMap[currentId] = node.evolves_to.map(n => getUrlId(n.species.url));
+                    node.evolves_to.forEach(traverseEvo);
+                }
+            };
+            traverseEvo(chainNode);
+            return evoMap;
+        }
+
+        async function testPokemon(id, expectedStages, description) {
+            const container = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = 'test-case';
+            div.innerHTML = `Running test: <b>${description}</b> (ID: ${id})...`;
+            container.appendChild(div);
+
+            try {
+                // 1. Fetch Species
+                const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${id}`);
+                const speciesData = await speciesRes.json();
+
+                // 2. Fetch Chain
+                const evoRes = await fetch(speciesData.evolution_chain.url);
+                const evoData = await evoRes.json();
+
+                // 3. Build Map
+                const evoMap = buildEvoMapFromChain(evoData.chain);
+                console.log(`EvoMap for ${id}:`, evoMap);
+
+                // 4. Verification
+                let passed = true;
+                let logs = [];
+
+                // Reconstruct the path from the map to verify continuity
+                // A generic verification for the "longest path" or checking specific links
+                let currentId = id;
+                let path = [currentId];
+
+                // Trace as deep as we can
+                while (evoMap[currentId]) {
+                    const nextIds = evoMap[currentId];
+                    if (nextIds.length > 0) {
+                        // For testing, just take the first path if multiple
+                        currentId = nextIds[0];
+                        path.push(currentId);
+                    } else {
+                        break;
+                    }
+                }
+
+                // Check if path length matches expected steps?
+                // Actually, checking "expectedStages" is better.
+                // expectedStages: [1, 2, 3] for Bulbasaur
+
+                // Eevee is special, checking simple length might fail if we just take [0]
+                // So let's just check if the returned map CONTAINS the keys/links we expect.
+
+                if (Array.isArray(expectedStages)) {
+                    // Linear check
+                    for (let i = 0; i < expectedStages.length - 1; i++) {
+                        const from = expectedStages[i];
+                        const to = expectedStages[i + 1];
+                        if (!evoMap[from] || !evoMap[from].includes(to)) {
+                            passed = false;
+                            logs.push(`Missing link: ${from} -> ${to}`);
+                        }
+                    }
+                } else if (typeof expectedStages === 'object') {
+                    // Branching check (e.g. Eevee)
+                    // { 133: [134, 135, 136...] }
+                    for (const [key, values] of Object.entries(expectedStages)) {
+                        const k = parseInt(key);
+                        if (!evoMap[k]) {
+                            passed = false;
+                            logs.push(`Missing key: ${k}`);
+                        } else {
+                            const mapValues = evoMap[k];
+                            // Check if ALL expected values are present
+                            const missing = values.filter(v => !mapValues.includes(v));
+                            if (missing.length > 0) {
+                                passed = false;
+                                logs.push(`Key ${k} missing targets: ${missing.join(', ')}`);
+                            }
+                        }
+                    }
+                }
+
+                if (passed) {
+                    div.innerHTML = `<span class="pass">[PASS]</span> <b>${description}</b> - Generated Map: ${JSON.stringify(evoMap)}`;
+                } else {
+                    div.innerHTML = `<span class="fail">[FAIL]</span> <b>${description}</b><br><span class="info">${logs.join('<br>')}</span><br><span class="info">Map: ${JSON.stringify(evoMap)}</span>`;
+                }
+
+            } catch (err) {
+                div.innerHTML = `<span class="fail">[ERROR]</span> ${description}: ${err.message}`;
+            }
+        }
+
+        async function runTests() {
+            document.getElementById('results').innerHTML = '';
+
+            // Test 1: Full 3-Stage Linear (Bulbasaur)
+            await testPokemon(1, [1, 2, 3], "Bulbasaur (3-Stage Linear)");
+
+            // Test 2: Full 3-Stage Linear (Charmander)
+            await testPokemon(4, [4, 5, 6], "Charmander (3-Stage Linear)");
+
+            // Test 3: 2-Stage (Pikachu)
+            await testPokemon(25, [25, 26], "Pikachu (2-Stage)");
+
+            // Test 4: Branching (Eevee)
+            // Just checking Gen 1 evolutions + others exist
+            await testPokemon(133, { 133: [134, 135, 136] }, "Eevee (Branching)");
+
+            // Test 5: No Evolution (Kangaskhan? Or Mewtwo?)
+            // Mewtwo doesn't evolve TO anything.
+            await testPokemon(150, [], "Mewtwo (No Evolution)");
+        }
+    </script>
+</body>
+
+</html>

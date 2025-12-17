@@ -206,7 +206,6 @@ const Explore = {
                     if (mapObj) {
                         mapObj.bossId = raidPool[Math.floor(Math.random() * raidPool.length)];
                         mapObj.raidExpiry = now + 120000; // 2 minutes
-                        mapObj.raidLevel = 1; // Reset level on new boss
 
                         // Update local object
                         obj.bossId = mapObj.bossId;
